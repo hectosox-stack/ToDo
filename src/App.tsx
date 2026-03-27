@@ -126,9 +126,9 @@ function AppContent() {
   }, [editingTitle]);
 
   function handleTitleEdit() {
-    setTitleDraft(appTitle ?? '');
-    setEditingTitle(true);
-  }
+  setTitleDraft(appTitle ?? '');
+  setEditingTitle(true);
+}
 
   function handleTitleSave() {
     const trimmed = titleDraft.trim();
