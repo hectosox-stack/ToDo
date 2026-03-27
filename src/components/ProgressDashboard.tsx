@@ -8,11 +8,7 @@ interface ProgressDashboardProps {
   tasks: Task[];
 }
 
-function barColor(percentage: number): string {
-  if (percentage <= 33) return 'bg-red-400';
-  if (percentage <= 66) return 'bg-orange-400';
-  return 'bg-green-500';
-}
+function 
 
 interface ProgressBarProps {
   percentage: number;

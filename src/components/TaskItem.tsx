@@ -111,7 +111,7 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
     if (!task.dueDate || task.completed) return null;
     const diff = getDDayDiff(task.dueDate);
     let label: string;
-    let cls: string;
+  
     let style: React.CSSProperties = {};
     if (diff === 0) {
       label = 'D-Day';
