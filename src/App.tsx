@@ -165,7 +165,7 @@ function AppContent() {
             {editingTitle ? (
               <input
                 ref={titleInputRef}
-                value={titleDraft}
+                value={titleDraft ?? ""}
                 onChange={e => setTitleDraft(e.target.value)}
                 onBlur={handleTitleSave}
                 onKeyDown={handleTitleKeyDown}

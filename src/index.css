@@ -39,3 +39,6 @@ body {
 input[type="checkbox"] {
   accent-color: #F05A28;
 }
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
