@@ -8,7 +8,6 @@ interface ProgressDashboardProps {
   tasks: Task[];
 }
 
-function 
 
 interface ProgressBarProps {
   percentage: number;
