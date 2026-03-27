@@ -22,7 +22,14 @@ function getMonthRange(year: number, month: number): { from: string; to: string 
 function AppContent() {
   const { tasks, addTask, updateTask, deleteTask, toggleComplete, toggleSubtask } = useTasks();
   const { categories } = useCategoryContext();
-  const { recurringTasks, addRecurring, updateRecurring, deleteRecurring, toggleActive, runAutoGenerate } = useRecurringTasks();
+  const {
+    recurringTasks,
+    addRecurring,
+    updateRecurring,
+    deleteRecurring,
+    toggleActive,
+    runAutoGenerate,
+  } = useRecurringTasks();
 
   const now = new Date();
   const initRange = getMonthRange(now.getFullYear(), now.getMonth() + 1);
@@ -40,12 +47,9 @@ function AppContent() {
   const [showImportantOnly, setShowImportantOnly] = useState(false);
   const [calSelectedDate, setCalSelectedDate] = useState<string | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(true);
-
-  // 수정 1: const 추가 + string 타입 명시
   const [appTitle, setAppTitle] = useState<string>(
     () => localStorage.getItem('app-title') ?? '업무현황'
   );
-
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -64,9 +68,11 @@ function AppContent() {
 
   function handleFilterModeChange(mode: FilterMode) {
     setFilterMode(mode);
+
     if (mode !== 'date') {
       setCalSelectedDate(null);
     }
+
     if (mode === 'all') {
       setDateFrom('');
       setDateTo('');
@@ -82,6 +88,7 @@ function AppContent() {
     setFilterMonth(month);
     setFilterMode('month');
     setCalSelectedDate(null);
+
     const { from, to } = getMonthRange(year, month);
     setDateFrom(from);
     setDateTo(to);
@@ -129,7 +136,6 @@ function AppContent() {
   }, [editingTitle]);
 
   function handleTitleEdit() {
-    // 수정 2: undefined 방지
     setTitleDraft(appTitle ?? '');
     setEditingTitle(true);
   }
@@ -149,27 +155,34 @@ function AppContent() {
   }
 
   const filteredTasks = useMemo(() => {
-    let result = activeCategory === 'all'
-      ? tasks
-      : tasks.filter(t => t.category === activeCategory);
-    if (!showCompleted) result = result.filter(t => !t.completed);
+    let result =
+      activeCategory === 'all'
+        ? tasks
+        : tasks.filter((t) => t.category === activeCategory);
+
+    if (!showCompleted) {
+      result = result.filter((t) => !t.completed);
+    }
+
     return result;
   }, [tasks, activeCategory, showCompleted]);
 
-  // 달력용 tasks — 카테고리 필터만 적용, showCompleted 미적용
   const calendarTasks = useMemo(() => {
     if (activeCategory === 'all') return tasks;
-    return tasks.filter(t => t.category === activeCategory);
+    return tasks.filter((t) => t.category === activeCategory);
   }, [tasks, activeCategory]);
 
   useMemo(() => {
-    if (activeCategory !== 'all' && !categories.find(c => c.id === activeCategory)) {
+    if (activeCategory !== 'all' && !categories.find((c) => c.id === activeCategory)) {
       setActiveCategory('all');
     }
   }, [categories, activeCategory]);
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--bg-base)' }}>
+    <div
+      className="h-screen flex flex-col overflow-hidden"
+      style={{ backgroundColor: 'var(--bg-base)' }}
+    >
       <header className="bg-white border-b border-gray-200 flex-shrink-0 shadow-sm">
         <div className="h-1 w-full" style={{ backgroundColor: 'var(--brand)' }} />
         <div className="px-6 py-3.5 flex items-center justify-between">
@@ -178,7 +191,7 @@ function AppContent() {
               <input
                 ref={titleInputRef}
                 value={titleDraft ?? ''}
-                onChange={e => setTitleDraft(e.target.value)}
+                onChange={(e) => setTitleDraft(e.target.value)}
                 onBlur={handleTitleSave}
                 onKeyDown={handleTitleKeyDown}
                 className="text-lg font-bold tracking-tight border-b-2 border-[#F05A28] outline-none bg-transparent"
@@ -194,6 +207,7 @@ function AppContent() {
                 {appTitle ?? ''}
               </h1>
             )}
+
             <span
               className="text-xs font-medium px-2 py-0.5 rounded-full"
               style={{ backgroundColor: 'var(--brand-light)', color: 'var(--brand)' }}
@@ -204,7 +218,7 @@ function AppContent() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setCalendarOpen(o => !o)}
+              onClick={() => setCalendarOpen((o) => !o)}
               aria-label="달력 토글"
               className={`text-sm border rounded-lg px-3 py-1.5 transition-colors focus:outline-none focus:ring-2 ${
                 calendarOpen
@@ -214,6 +228,7 @@ function AppContent() {
             >
               📅 달력
             </button>
+
             <button
               onClick={() => setManagerOpen(true)}
               aria-label="카테고리 관리"
@@ -221,6 +236,7 @@ function AppContent() {
             >
               카테고리 관리
             </button>
+
             <button
               onClick={() => setRecurringManagerOpen(true)}
               aria-label="반복 업무 관리"
