@@ -51,7 +51,7 @@ function AppContent() {
     () => localStorage.getItem('app-title') ?? '업무현황'
   );
   const [editingTitle, setEditingTitle] = useState(false);
-  const [titleDraft, setTitleDraft] = useState('');
+  const [titleDraft, setTitleDraft] = useState<string>('');
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   function handleAdd(
@@ -136,7 +136,7 @@ function AppContent() {
   }, [editingTitle]);
 
   function handleTitleEdit() {
-    setTitleDraft(appTitle ?? '');
+    setTitleDraft(appTitle);
     setEditingTitle(true);
   }
 
@@ -190,7 +190,7 @@ function AppContent() {
             {editingTitle ? (
               <input
                 ref={titleInputRef}
-                value={titleDraft ?? ''}
+                value={titleDraft}
                 onChange={(e) => setTitleDraft(e.target.value)}
                 onBlur={handleTitleSave}
                 onKeyDown={handleTitleKeyDown}
@@ -204,7 +204,7 @@ function AppContent() {
                 onClick={handleTitleEdit}
                 title="클릭하여 제목 수정"
               >
-                {appTitle ?? ''}
+                {appTitle}
               </h1>
             )}
 
