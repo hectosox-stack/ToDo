@@ -40,7 +40,7 @@ function AppContent() {
   const [showImportantOnly, setShowImportantOnly] = useState(false);
   const [calSelectedDate, setCalSelectedDate] = useState<string | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(true);
-  const [appTitle, setAppTitle] = useState(() => localStorage.getItem('app-title') || '업무현황');
+  [appTitle, setAppTitle] = useState<string>(() => localStorage.getItem('app-title') ?? '업무현황');
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -179,7 +179,7 @@ function AppContent() {
                 onClick={handleTitleEdit}
                 title="클릭하여 제목 수정"
               >
-                {appTitle}
+              {appTitle ?? ""}
               </h1>
             )}
             <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--brand-light)', color: 'var(--brand)' }}>
