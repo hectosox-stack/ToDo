@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>To-Do</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; }
+    .task-enter { animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<div class="max-w-2xl mx-auto px-4 py-8">
+
+  <!-- 헤더 -->
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">📋 To-Do</h1>
+    <button onclick="openCatModal()" class="text-sm text-gray-500 hover:text-gray-700 border border-gray-300 rounded px-3 py-1">
+      카테고리 관리
+    </button>
+  </div>
+
+  <!-- 진행률 대시보드 -->
+  <div id="dashboard" class="bg-white rounded-xl shadow-sm p-4 mb-4 text-sm text-gray-600"></div>
+
+  <!-- 입력 폼 -->
+  <div class="bg-white rounded-xl shadow-sm p-4 mb-4">
+    <div class="flex gap-2 mb-2">
+      <input id="inp-title" type="text" placeholder="할 일 입력..."
+        class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+        onkeydown="if(event.key==='Enter') addTask()" />
+      <select id="inp-cat"
+        class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"></select>
+    </div>
+    <div class="flex gap-2 mb-2">
+      <input id="inp-due" type="date"
+        class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+      <input id="inp-note" type="text" placeholder="노트 (선택)"
+        class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+    </div>
+    <button onclick="addTask()"
+      class="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-lg py-2 text-sm font-medium transition">
+      추가
+    </button>
+  </div>
+
+  <!-- 카테고리 필터 -->
+  <div id="filter-bar" class="flex gap-2 mb-4 flex-wrap"></div>
+
+  <!-- 할 일 목록 -->
+  <div id="task-list" class="space-y-2"></div>
+
+  <!-- 완료 삭제 버튼 -->
+  <div class="mt-4 text-right">
+    <button onclick="clearCompleted()"
+      class="text-xs text-gray-400 hover:text-red-400 transition">완료 항목 삭제</button>
+  </div>
+</div>
+
+
+<!-- 수정 모달 -->
+<div id="edit-modal" class="hidden fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+  <div class="bg-white rounded-xl shadow-lg p-6 w-full max-w-md mx-4">
+    <h2 class="font-bold text-gray-700 mb-4">할 일 수정</h2>
+    <input id="edit-title" type="text" placeholder="제목"
+      class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+    <input id="edit-due" type="date"
+      class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+    <input id="edit-note" type="text" placeholder="노트"
+      class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+    <div class="flex gap-2">
+      <button onclick="submitEdit()"
+        class="flex-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg py-2 text-sm font-medium transition">저장</button>
+      <button onclick="closeEditModal()"
+        class="flex-1 border border-gray-200 text-gray-600 rounded-lg py-2 text-sm hover:bg-gray-50 transition">취소</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- 카테고리 관리 모달 -->
+<div id="cat-modal" class="hidden fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+  <div class="bg-white rounded-xl shadow-lg p-6 w-full max-w-md mx-4">
+    <h2 class="font-bold text-gray-700 mb-4">카테고리 관리</h2>
+    <div id="cat-list" class="space-y-2 mb-4 max-h-48 overflow-y-auto"></div>
+    <div class="flex gap-2 mb-2">
+      <input id="new-cat-label" type="text" placeholder="카테고리 이름"
+        class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+      <select id="new-cat-color"
+        class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+        <option value="blue">파랑</option>
+        <option value="green">초록</option>
+        <option value="orange">주황</option>
+        <option value="purple">보라</option>
+        <option value="rose">빨강</option>
+        <option value="teal">청록</option>
+        <option value="amber">노랑</option>
+        <option value="indigo">인디고</option>
+        <option value="pink">분홍</option>
+        <option value="cyan">하늘</option>
+      </select>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="addCategory()"
+        class="flex-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg py-2 text-sm font-medium transition">추가</button>
+      <button onclick="closeCatModal()"
+        class="flex-1 border border-gray-200 text-gray-600 rounded-lg py-2 text-sm hover:bg-gray-50 transition">닫기</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// ── 색상 팔레트 ──────────────────────────────────────
+const COLOR = {
+  blue:   { badge: 'bg-blue-100 text-blue-800 border-blue-200',     bar: 'bg-blue-400' },
+  green:  { badge: 'bg-green-100 text-green-800 border-green-200',   bar: 'bg-green-400' },
+  orange: { badge: 'bg-orange-100 text-orange-800 border-orange-200', bar: 'bg-orange-400' },
+  purple: { badge: 'bg-purple-100 text-purple-800 border-purple-200', bar: 'bg-purple-400' },
+  rose:   { badge: 'bg-rose-100 text-rose-800 border-rose-200',     bar: 'bg-rose-400' },
+  teal:   { badge: 'bg-teal-100 text-teal-800 border-teal-200',     bar: 'bg-teal-400' },
+  amber:  { badge: 'bg-amber-100 text-amber-800 border-amber-200',  bar: 'bg-amber-400' },
+  indigo: { badge: 'bg-indigo-100 text-indigo-800 border-indigo-200', bar: 'bg-indigo-400' },
+  pink:   { badge: 'bg-pink-100 text-pink-800 border-pink-200',     bar: 'bg-pink-400' },
+  cyan:   { badge: 'bg-cyan-100 text-cyan-800 border-cyan-200',     bar: 'bg-cyan-400' },
+};
+
+// ── 상태 ─────────────────────────────────────────────
+let tasks = [], categories = [], filterCat = null, editingId = null;
+
+// ── API ──────────────────────────────────────────────
+const api = {
+  get:    (url)       => fetch(url).then(r => r.json()),
+  post:   (url, body) => fetch(url, { method:'POST',  headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }).then(r => r.json()),
+  patch:  (url, body) => fetch(url, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }).then(r => r.json()),
+  delete: (url)       => fetch(url, { method:'DELETE' }),
+};
+
+// ── 초기 로드 ─────────────────────────────────────────
+async function init() {
+  [tasks, categories] = await Promise.all([api.get('/api/tasks'), api.get('/api/categories')]);
+  render();
+}
+
+// ── 렌더링 ────────────────────────────────────────────
+function render() {
+  renderDashboard();
+  renderFilterBar();
+  renderCatSelect();
+  renderTasks();
+}
+
+function renderDashboard() {
+  const total = tasks.length;
+  const done  = tasks.filter(t => t.completed).length;
+  const pct   = total ? Math.round(done / total * 100) : 0;
+
+  let html = `<div class="flex items-center justify-between mb-3">
+    <span class="font-medium text-gray-700">전체 진행률</span>
+    <span class="text-blue-500 font-bold">${pct}%</span>
+  </div>
+  <div class="w-full bg-gray-100 rounded-full h-2 mb-3">
+    <div class="bg-blue-400 h-2 rounded-full transition-all" style="width:${pct}%"></div>
+  </div>
+  <div class="flex gap-4 text-xs text-gray-500 mb-3">
+    <span>전체 ${total}</span><span>완료 ${done}</span><span>미완료 ${total - done}</span>
+  </div>
+  <div class="grid grid-cols-2 gap-2">`;
+
+  categories.forEach(cat => {
+    const ct   = tasks.filter(t => t.category === cat.label);
+    if (!ct.length) return;
+    const cd   = ct.filter(t => t.completed).length;
+    const cpct = Math.round(cd / ct.length * 100);
+    const col  = COLOR[cat.colorKey] || COLOR.blue;
+    html += `<div class="flex items-center gap-2">
+      <span class="text-xs px-2 py-0.5 rounded-full border ${col.badge}">${cat.label}</span>
+      <div class="flex-1 bg-gray-100 rounded-full h-1.5">
+        <div class="${col.bar} h-1.5 rounded-full" style="width:${cpct}%"></div>
+      </div>
+      <span class="text-xs text-gray-400">${cd}/${ct.length}</span>
+    </div>`;
+  });
+
+  html += `</div>`;
+  document.getElementById('dashboard').innerHTML = html;
+}
+
+function renderFilterBar() {
+  const bar = document.getElementById('filter-bar');
+  let html = `<button onclick="setFilter(null)"
+    class="text-xs px-3 py-1 rounded-full border transition ${filterCat === null ? 'bg-gray-700 text-white border-gray-700' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}">
+    전체
+  </button>`;
+  categories.forEach(cat => {
+    const col = COLOR[cat.colorKey] || COLOR.blue;
+    const active = filterCat === cat.label;
+    html += `<button onclick="setFilter('${cat.label}')"
+      class="text-xs px-3 py-1 rounded-full border transition ${active ? col.badge + ' font-semibold' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}">
+      ${cat.label}
+    </button>`;
+  });
+  bar.innerHTML = html;
+}
+
+function renderCatSelect() {
+  const sel = document.getElementById('inp-cat');
+  sel.innerHTML = categories.map(c => `<option value="${c.label}">${c.label}</option>`).join('');
+}
+
+function renderTasks() {
+  const filtered = filterCat ? tasks.filter(t => t.category === filterCat) : tasks;
+  const pending   = filtered.filter(t => !t.completed);
+  const completed = filtered.filter(t => t.completed);
+
+  const list = document.getElementById('task-list');
+  if (!filtered.length) {
+    list.innerHTML = `<p class="text-center text-gray-400 text-sm py-8">할 일이 없습니다</p>`;
+    return;
+  }
+
+  list.innerHTML = [...pending, ...completed].map(t => taskHTML(t)).join('');
+}
+
+function taskHTML(t) {
+  const cat = categories.find(c => c.label === t.category);
+  const col = COLOR[(cat?.colorKey) || 'blue'];
+  const due = t.dueDate ? `<span class="text-xs text-gray-400 ml-1">📅 ${t.dueDate}</span>` : '';
+  const note = t.note ? `<p class="text-xs text-gray-400 mt-0.5 ml-6">${t.note}</p>` : '';
+  return `
+  <div class="task-enter bg-white rounded-xl shadow-sm p-3 flex items-start gap-2 group ${t.completed ? 'opacity-60' : ''}">
+    <button onclick="toggleTask('${t.id}')"
+      class="mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition
+             ${t.completed ? 'bg-green-400 border-green-400 text-white' : 'border-gray-300 hover:border-green-400'}">
+      ${t.completed ? '✓' : ''}
+    </button>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="${t.completed ? 'line-through text-gray-400' : 'text-gray-700'} text-sm font-medium">${t.title}</span>
+        <span class="text-xs px-2 py-0.5 rounded-full border ${col.badge}">${t.category}</span>
+        ${due}
+      </div>
+      ${note}
+    </div>
+    <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+      <button onclick="openEditModal('${t.id}')" class="text-gray-400 hover:text-blue-500 text-xs px-1.5 py-1 rounded hover:bg-blue-50">수정</button>
+      <button onclick="deleteTask('${t.id}')" class="text-gray-400 hover:text-red-500 text-xs px-1.5 py-1 rounded hover:bg-red-50">삭제</button>
+    </div>
+  </div>`;
+}
+
+// ── 액션 ─────────────────────────────────────────────
+function setFilter(cat) { filterCat = cat; render(); }
+
+async function addTask() {
+  const title = document.getElementById('inp-title').value.trim();
+  const cat   = document.getElementById('inp-cat').value;
+  const due   = document.getElementById('inp-due').value || null;
+  const note  = document.getElementById('inp-note').value.trim() || null;
+  if (!title) return;
+  const task = await api.post('/api/tasks', { title, category: cat, dueDate: due, note });
+  tasks.unshift(task);
+  document.getElementById('inp-title').value = '';
+  document.getElementById('inp-due').value   = '';
+  document.getElementById('inp-note').value  = '';
+  render();
+}
+
+async function toggleTask(id) {
+  const updated = await api.patch(`/api/tasks/${id}/toggle`, {});
+  tasks = tasks.map(t => t.id === id ? updated : t);
+  render();
+}
+
+async function deleteTask(id) {
+  await api.delete(`/api/tasks/${id}`);
+  tasks = tasks.filter(t => t.id !== id);
+  render();
+}
+
+async function clearCompleted() {
+  await api.delete('/api/tasks/completed');
+  tasks = tasks.filter(t => !t.completed);
+  render();
+}
+
+// ── 수정 모달 ─────────────────────────────────────────
+function openEditModal(id) {
+  const t = tasks.find(t => t.id === id);
+  editingId = id;
+  document.getElementById('edit-title').value = t.title;
+  document.getElementById('edit-due').value   = t.dueDate || '';
+  document.getElementById('edit-note').value  = t.note || '';
+  document.getElementById('edit-modal').classList.remove('hidden');
+}
+
+function closeEditModal() {
+  editingId = null;
+  document.getElementById('edit-modal').classList.add('hidden');
+}
+
+async function submitEdit() {
+  const changes = {
+    title:   document.getElementById('edit-title').value.trim(),
+    dueDate: document.getElementById('edit-due').value || null,
+    note:    document.getElementById('edit-note').value.trim() || null,
+  };
+  const updated = await api.patch(`/api/tasks/${editingId}`, changes);
+  tasks = tasks.map(t => t.id === editingId ? updated : t);
+  closeEditModal();
+  render();
+}
+
+// ── 카테고리 모달 ─────────────────────────────────────
+function openCatModal() {
+  renderCatList();
+  document.getElementById('cat-modal').classList.remove('hidden');
+}
+
+function closeCatModal() {
+  document.getElementById('cat-modal').classList.add('hidden');
+}
+
+function renderCatList() {
+  const list = document.getElementById('cat-list');
+  list.innerHTML = categories.map(c => {
+    const col = COLOR[c.colorKey] || COLOR.blue;
+    return `<div class="flex items-center justify-between">
+      <span class="text-xs px-2 py-0.5 rounded-full border ${col.badge}">${c.label}</span>
+      <button onclick="deleteCategory('${c.id}')" class="text-xs text-gray-400 hover:text-red-400">삭제</button>
+    </div>`;
+  }).join('');
+}
+
+async function addCategory() {
+  const label = document.getElementById('new-cat-label').value.trim();
+  const colorKey = document.getElementById('new-cat-color').value;
+  if (!label) return;
+  const cat = await api.post('/api/categories', { label, colorKey });
+  categories.push(cat);
+  document.getElementById('new-cat-label').value = '';
+  renderCatList();
+  render();
+}
+
+async function deleteCategory(id) {
+  await api.delete(`/api/categories/${id}`);
+  categories = categories.filter(c => c.id !== id);
+  renderCatList();
+  render();
+}
+
+// 모달 바깥 클릭 닫기
+document.getElementById('edit-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeEditModal(); });
+document.getElementById('cat-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeCatModal(); });
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand: #F05A28;
+  --brand-light: #FFF4F0;
+  --brand-hover: #D94E20;
+  --text-primary: #1A1A1A;
+  --text-secondary: #6B7280;
+  --bg-base: #FAF8F6;
+  --border: #E5E7EB;
+}
+
+body {
+  font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  letter-spacing: -0.01em;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+}
+
+/* 커스텀 스크롤바 */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #F05A28;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #D94E20;
+}
+
+/* 체크박스 accent 색상 */
+input[type="checkbox"] {
+  accent-color: #F05A28;
+}
