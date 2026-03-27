@@ -51,8 +51,8 @@ function AppContent() {
     () => localStorage.getItem('app-title') ?? '업무현황'
   );
   const [editingTitle, setEditingTitle] = useState(false);
-const [titleDraft, setTitleDraft] = useState('');
-const titleInputRef = useRef<HTMLInputElement>(null);
+  const [titleDraft, setTitleDraft] = useState('');
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   function handleAdd(
     title: string,
@@ -136,9 +136,8 @@ const titleInputRef = useRef<HTMLInputElement>(null);
   }, [editingTitle]);
 
   function handleTitleEdit() {
-  setTitleDraft(appTitle ?? '');
-  setEditingTitle(true);
-}
+    setTitleDraft(appTitle ?? '');
+    setEditingTitle(true);
   }
 
   function handleTitleSave() {
