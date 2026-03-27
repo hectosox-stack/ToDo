@@ -40,13 +40,22 @@ function AppContent() {
   const [showImportantOnly, setShowImportantOnly] = useState(false);
   const [calSelectedDate, setCalSelectedDate] = useState<string | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(true);
-  [appTitle, setAppTitle] = useState<string>(() => localStorage.getItem('app-title') ?? '업무현황');
+  const [appTitle, setAppTitle] = useState<string>(
+    () => localStorage.getItem('app-title') ?? '업무현황'
+  );
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const titleInputRef = useRef<HTMLInputElement>(null);
 
-  // [수정 1] important 파라미터 추가
-  function handleAdd(title: string, category: string, startDate?: string, dueDate?: string, note?: string, subtasks?: import('./types').SubTask[], important?: boolean) {
+  function handleAdd(
+    title: string,
+    category: string,
+    startDate?: string,
+    dueDate?: string,
+    note?: string,
+    subtasks?: import('./types').SubTask[],
+    important?: boolean
+  ) {
     addTask({ title, category, createdAt: startDate, dueDate, note, subtasks, important });
   }
 
@@ -117,7 +126,7 @@ function AppContent() {
   }, [editingTitle]);
 
   function handleTitleEdit() {
-    setTitleDraft(appTitle);
+    setTitleDraft(appTitle ?? '');
     setEditingTitle(true);
   }
 
@@ -139,12 +148,12 @@ function AppContent() {
     let result = activeCategory === 'all'
       ? tasks
       : tasks.filter(t => t.category === activeCategory);
+
     if (!showCompleted) result = result.filter(t => !t.completed);
+
     return result;
   }, [tasks, activeCategory, showCompleted]);
 
-  // [수정 3] 달력용 tasks — 카테고리 필터만 적용, showCompleted 미적용
-  // (달력에는 완료된 항목도 점으로 표시되어야 하므로 별도 계산)
   const calendarTasks = useMemo(() => {
     if (activeCategory === 'all') return tasks;
     return tasks.filter(t => t.category === activeCategory);
@@ -165,7 +174,7 @@ function AppContent() {
             {editingTitle ? (
               <input
                 ref={titleInputRef}
-                value={titleDraft ?? ""}
+                value={titleDraft ?? ''}
                 onChange={e => setTitleDraft(e.target.value)}
                 onBlur={handleTitleSave}
                 onKeyDown={handleTitleKeyDown}
@@ -179,13 +188,17 @@ function AppContent() {
                 onClick={handleTitleEdit}
                 title="클릭하여 제목 수정"
               >
-              {appTitle ?? ""}
+                {appTitle ?? ''}
               </h1>
             )}
-            <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--brand-light)', color: 'var(--brand)' }}>
+            <span
+              className="text-xs font-medium px-2 py-0.5 rounded-full"
+              style={{ backgroundColor: 'var(--brand-light)', color: 'var(--brand)' }}
+            >
               {tasks.length}건
             </span>
           </div>
+
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCalendarOpen(o => !o)}
@@ -198,6 +211,7 @@ function AppContent() {
             >
               📅 달력
             </button>
+
             <button
               onClick={() => setManagerOpen(true)}
               aria-label="카테고리 관리"
@@ -205,6 +219,7 @@ function AppContent() {
             >
               카테고리 관리
             </button>
+
             <button
               onClick={() => setRecurringManagerOpen(true)}
               aria-label="반복 업무 관리"
@@ -281,6 +296,7 @@ function AppContent() {
           onClose={() => setManagerOpen(false)}
         />
       )}
+
       {recurringManagerOpen && (
         <RecurringTaskManager
           recurringTasks={recurringTasks}
