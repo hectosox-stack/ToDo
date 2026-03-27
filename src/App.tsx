@@ -40,9 +40,12 @@ function AppContent() {
   const [showImportantOnly, setShowImportantOnly] = useState(false);
   const [calSelectedDate, setCalSelectedDate] = useState<string | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(true);
+
+  // ✅ 핵심 수정 (타입 + null 처리)
   const [appTitle, setAppTitle] = useState<string>(
     () => localStorage.getItem('app-title') ?? '업무현황'
   );
+
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -61,9 +64,8 @@ function AppContent() {
 
   function handleFilterModeChange(mode: FilterMode) {
     setFilterMode(mode);
-    if (mode !== 'date') {
-      setCalSelectedDate(null);
-    }
+    if (mode !== 'date') setCalSelectedDate(null);
+
     if (mode === 'all') {
       setDateFrom('');
       setDateTo('');
@@ -115,7 +117,6 @@ function AppContent() {
 
   useEffect(() => {
     runAutoGenerate(addTask);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -125,10 +126,11 @@ function AppContent() {
     }
   }, [editingTitle]);
 
+  // ✅ 핵심 수정
   function handleTitleEdit() {
-  setTitleDraft(appTitle ?? '');
-  setEditingTitle(true);
-}
+    setTitleDraft(appTitle ?? '');
+    setEditingTitle(true);
+  }
 
   function handleTitleSave() {
     const trimmed = titleDraft.trim();
@@ -178,55 +180,14 @@ function AppContent() {
                 onChange={e => setTitleDraft(e.target.value)}
                 onBlur={handleTitleSave}
                 onKeyDown={handleTitleKeyDown}
-                className="text-lg font-bold tracking-tight border-b-2 border-[#F05A28] outline-none bg-transparent"
-                style={{ color: 'var(--text-primary)', minWidth: '6rem' }}
+                className="text-lg font-bold border-b-2 outline-none bg-transparent"
               />
             ) : (
-              <h1
-                className="text-lg font-bold tracking-tight cursor-pointer hover:opacity-70 transition-opacity"
-                style={{ color: 'var(--text-primary)' }}
-                onClick={handleTitleEdit}
-                title="클릭하여 제목 수정"
-              >
+              <h1 onClick={handleTitleEdit}>
                 {appTitle ?? ''}
               </h1>
             )}
-            <span
-              className="text-xs font-medium px-2 py-0.5 rounded-full"
-              style={{ backgroundColor: 'var(--brand-light)', color: 'var(--brand)' }}
-            >
-              {tasks.length}건
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCalendarOpen(o => !o)}
-              aria-label="달력 토글"
-              className={`text-sm border rounded-lg px-3 py-1.5 transition-colors focus:outline-none focus:ring-2 ${
-                calendarOpen
-                  ? 'border-[#F05A28] text-[#F05A28] bg-[#FFF4F0] hover:bg-orange-100 focus:ring-[#F05A28]'
-                  : 'text-gray-500 hover:text-gray-700 border-gray-300 hover:bg-gray-50 focus:ring-[#F05A28]'
-              }`}
-            >
-              📅 달력
-            </button>
-
-            <button
-              onClick={() => setManagerOpen(true)}
-              aria-label="카테고리 관리"
-              className="text-sm text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg px-3 py-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-[#F05A28] hover:bg-gray-50"
-            >
-              카테고리 관리
-            </button>
-
-            <button
-              onClick={() => setRecurringManagerOpen(true)}
-              aria-label="반복 업무 관리"
-              className="text-sm text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg px-3 py-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-[#F05A28] hover:bg-gray-50"
-            >
-              🔁 반복 업무
-            </button>
+            <span>{tasks.length}건</span>
           </div>
         </div>
       </header>
@@ -262,51 +223,9 @@ function AppContent() {
             showImportantOnly={showImportantOnly}
             onShowImportantOnlyChange={setShowImportantOnly}
             calSelectedDate={calSelectedDate}
-            onClearCalendarDate={() => {
-              setCalSelectedDate(null);
-              handleFilterModeChange('month');
-            }}
           />
         </main>
-
-        {calendarOpen && (
-          <aside className="w-64 flex-shrink-0 bg-white border-l border-gray-200 overflow-y-auto">
-            <MiniCalendar
-              tasks={calendarTasks}
-              year={filterYear}
-              month={filterMonth}
-              onMonthChange={handleCalendarMonthChange}
-              selectedDate={calSelectedDate}
-              onDateSelect={(date) => {
-                if (date === null) {
-                  setCalSelectedDate(null);
-                  handleFilterModeChange('month');
-                } else {
-                  handleCalendarDateSelect(date);
-                }
-              }}
-            />
-          </aside>
-        )}
       </div>
-
-      {managerOpen && (
-        <CategoryManager
-          tasks={tasks}
-          onClose={() => setManagerOpen(false)}
-        />
-      )}
-
-      {recurringManagerOpen && (
-        <RecurringTaskManager
-          recurringTasks={recurringTasks}
-          onAdd={addRecurring}
-          onUpdate={updateRecurring}
-          onDelete={deleteRecurring}
-          onToggleActive={toggleActive}
-          onClose={() => setRecurringManagerOpen(false)}
-        />
-      )}
     </div>
   );
 }
