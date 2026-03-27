@@ -63,7 +63,7 @@ function AppContent() {
     subtasks?: import('./types').SubTask[],
     important?: boolean
   ) {
-    addTask({ title, category, createdAt: startDate, dueDate, note, subtasks, important });
+    addTask({ title, category, createdAt: startDate ?? '', dueDate, note, subtasks, important });
   }
 
   function handleFilterModeChange(mode: FilterMode) {
