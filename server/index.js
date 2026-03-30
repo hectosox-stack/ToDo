@@ -25,19 +25,6 @@ app.use(express.json());
 // ── 헬스체크 ─────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
-// ── DB 자동 마이그레이션 (스키마 초기화) ─────────────────
-async function migrate() {
-  const fs   = require('fs');
-  const path = require('path');
-  const sql  = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
-  try {
-    await pool.query(sql);
-    console.log('[DB] 스키마 마이그레이션 완료');
-  } catch (err) {
-    console.error('[DB] 마이그레이션 실패:', err.message);
-  }
-}
-
 // ── 라우터 ────────────────────────────────────────────────
 app.use('/api/tasks',      tasksRouter);
 app.use('/api/categories', categoriesRoute);
@@ -49,9 +36,8 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: '서버 오류가 발생했습니다' });
 });
 
-// ── 서버 시작 ────────────────────────────────────────────
-migrate().then(() => {
-  app.listen(PORT, () => {
-    console.log(`[Server] http://localhost:${PORT} 에서 실행 중`);
-  });
+// ── 서버 시작 (마이그레이션 분리 — 속도 개선) ────────────
+// 스키마 변경 시에만 수동으로 node server/migrate.js 실행
+app.listen(PORT, () => {
+  console.log(`[Server] http://localhost:${PORT} 에서 실행 중`);
 });
