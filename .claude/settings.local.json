@@ -11,7 +11,8 @@
       "Bash(node -e \"require\\(''./server/routes/tasks''\\); require\\(''./server/routes/categories''\\); require\\(''./server/routes/recurring''\\); console.log\\(''OK''\\)\")",
       "Bash(curl -s http://localhost:4000/health)",
       "Bash(npm list:*)",
-      "Bash(npx kill-port:*)"
+      "Bash(npx kill-port:*)",
+      "Bash(node server/migrate.js)"
     ]
   }
 }

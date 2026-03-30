@@ -1,5 +1,6 @@
-// [기능 1] 서브태스크 추가/수정/삭제 + 실행취소 스낵바 + 진행률 바 추가
-// [기능 2] onDelete 는 이제 소프트 삭제(휴지통 이동) 처리 — useTasks 에서 담당
+// [수정 1] 세부 항목 토글(▲/▼) 완전 제거 — 항상 펼침 표시
+// [수정 2] subtasks PUT 시 title NULL 덮어쓰기 버그 → routes/tasks.js 부분 업데이트로 해결
+// [수정 3] 체크박스 stopPropagation, onBlur 저장, 10개 이상 시 max-height 스크롤
 
 import React, { memo, useState, useRef, useEffect, KeyboardEvent } from 'react';
 import type { Task, SubTask } from '../types';
@@ -28,7 +29,8 @@ function getDDayDiff(dueDate: string): number {
   return Math.floor((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-const TITLE_MAX = 100;
+const TITLE_MAX     = 100;
+const SUBTASK_LIMIT = 5;
 
 function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskItemProps) {
   // 인라인 제목 편집 (더블클릭)
@@ -45,12 +47,12 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
   const [panelDateError, setPanelDateError] = useState('');
 
   const [hovered, setHovered] = useState(false);
-  const [subtasksExpanded, setSubtasksExpanded] = useState(
-    () => (task.subtasks?.length ?? 0) > 0
-  );
+
+  // [수정 1] subtasksExpanded state 제거 — 세부 항목 항상 표시
+  // 5개 초과 시 "외 N개 더보기" 토글만 유지
   const [showAllSubtasks, setShowAllSubtasks] = useState(false);
 
-  // [기능 1] 서브태스크 CRUD 상태
+  // 서브태스크 CRUD 상태
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
@@ -58,22 +60,22 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
   const newSubtaskInputRef = useRef<HTMLInputElement>(null);
   const editSubtaskInputRef = useRef<HTMLInputElement>(null);
 
-  // [기능 1] 실행취소 스낵바
+  // 실행취소 스낵바
   const [undoInfo, setUndoInfo] = useState<{ subtask: SubTask; index: number } | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const hasSubtasks = (task.subtasks?.length ?? 0) > 0;
+  const hasSubtasks      = (task.subtasks?.length ?? 0) > 0;
   const completedSubtasks = task.subtasks?.filter(s => s.completed).length ?? 0;
-  const totalSubtasks = task.subtasks?.length ?? 0;
+  const totalSubtasks    = task.subtasks?.length ?? 0;
 
-  const SUBTASK_LIMIT = 5;
+  // 5개 초과 처리
   const hiddenSubtaskCount = Math.max(0, totalSubtasks - SUBTASK_LIMIT);
-  const visibleSubtasks = showAllSubtasks
+  const visibleSubtasks    = showAllSubtasks
     ? (task.subtasks ?? [])
     : (task.subtasks ?? []).slice(0, SUBTASK_LIMIT);
 
-  // 서브태스크 섹션 표시 조건: 펼쳐져 있고, (서브태스크 있거나 추가 중)
-  const showSubtaskSection = subtasksExpanded && (hasSubtasks || addingSubtask);
+  // [수정 1] 세부 항목 섹션: 조건 없이 hasSubtasks 또는 추가 중이면 항상 표시
+  const showSubtaskSection = hasSubtasks || addingSubtask;
 
   useEffect(() => {
     if (addingSubtask && newSubtaskInputRef.current) {
@@ -137,26 +139,26 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
   }
   function cancelPanel() { setPanelOpen(false); }
 
-  // ── [기능 1] 서브태스크 추가 ─────────────────────
+  // ── 서브태스크 추가 ─────────────────────
   function handleAddSubtask() {
     const trimmed = newSubtaskTitle.trim();
     if (!trimmed) { setAddingSubtask(false); return; }
     const newSub: SubTask = {
-      id: crypto.randomUUID(),
-      title: trimmed,
+      id:        crypto.randomUUID(),
+      title:     trimmed,
       completed: false,
-      order: task.subtasks?.length ?? 0,
+      order:     task.subtasks?.length ?? 0,
     };
+    // subtasks만 전송 → 백엔드 부분 업데이트로 title 보존
     onUpdate(task.id, { subtasks: [...(task.subtasks ?? []), newSub] });
     setNewSubtaskTitle('');
-    // 연속 입력 가능하도록 input 포커스 유지
   }
   function handleAddSubtaskKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter') handleAddSubtask();
     else if (e.key === 'Escape') { setAddingSubtask(false); setNewSubtaskTitle(''); }
   }
 
-  // ── [기능 1] 서브태스크 수정 ─────────────────────
+  // ── 서브태스크 수정 ─────────────────────
   function startEditSubtask(sub: SubTask) {
     setEditingSubtaskId(sub.id);
     setEditingSubtaskValue(sub.title);
@@ -175,11 +177,11 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
     else if (e.key === 'Escape') setEditingSubtaskId(null);
   }
 
-  // ── [기능 1] 서브태스크 삭제 + 실행취소 3초 스낵바 ─
+  // ── 서브태스크 삭제 + 실행취소 3초 스낵바 ─
   function deleteSubtask(subId: string) {
-    const list = task.subtasks ?? [];
+    const list  = task.subtasks ?? [];
     const index = list.findIndex(s => s.id === subId);
-    const sub = list[index];
+    const sub   = list[index];
     if (!sub) return;
     onUpdate(task.id, { subtasks: list.filter(s => s.id !== subId) });
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
@@ -189,7 +191,7 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
   function handleUndoDelete() {
     if (!undoInfo) return;
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    const current = task.subtasks ?? [];
+    const current  = task.subtasks ?? [];
     const restored = [
       ...current.slice(0, undoInfo.index),
       undoInfo.subtask,
@@ -259,7 +261,7 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
           className="w-4 h-4 cursor-pointer accent-blue-500 flex-shrink-0 focus:ring-2 focus:ring-blue-400"
         />
 
-        {/* 제목 + 메모 + 세부항목 토글 */}
+        {/* 제목 + 메모 + 세부항목 카운트 */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             {editing ? (
@@ -281,7 +283,7 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
                 onKeyDown={e => e.key === 'Enter' && startInlineEdit()}
                 className={`text-sm cursor-text select-none ${task.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}
               >
-                {task.title}
+                {task.title || '(제목 없음)'}
               </span>
             )}
             {task.repeatTaskId && (
@@ -294,25 +296,23 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
               </span>
             )}
 
-            {/* [기능 1] 세부항목 토글 (있을 때) / 추가 버튼 (없을 때, hover 시) */}
-            {hasSubtasks ? (
-              <button
-                type="button"
-                onClick={() => setSubtasksExpanded(o => !o)}
-                className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-600 transition-colors focus:outline-none flex-shrink-0"
-                aria-label={subtasksExpanded ? '세부 항목 접기' : '세부 항목 펼치기'}
+            {/* [수정 1] 토글 버튼 제거 — 세부 항목 있으면 카운트 뱃지(비클릭)만 표시 */}
+            {hasSubtasks && (
+              <span
+                className={`text-xs flex-shrink-0 ${
+                  completedSubtasks === totalSubtasks ? 'text-green-500' : 'text-indigo-400'
+                }`}
+                aria-label={`세부 항목 ${completedSubtasks}/${totalSubtasks} 완료`}
               >
-                <span className="transition-transform duration-150">
-                  {subtasksExpanded ? '▲' : '▼'}
-                </span>
-                <span className={completedSubtasks === totalSubtasks ? 'text-green-500' : ''}>
-                  {completedSubtasks}/{totalSubtasks}
-                </span>
-              </button>
-            ) : (
+                {completedSubtasks}/{totalSubtasks}
+              </span>
+            )}
+
+            {/* 세부 항목 없을 때: hover 시 추가 버튼 */}
+            {!hasSubtasks && (
               <button
                 type="button"
-                onClick={() => { setSubtasksExpanded(true); setAddingSubtask(true); }}
+                onClick={() => setAddingSubtask(true)}
                 className={`text-xs text-gray-300 hover:text-indigo-400 transition-colors focus:outline-none flex-shrink-0 ${
                   hovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 }`}
@@ -324,7 +324,7 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
             )}
           </div>
 
-          {/* [기능 1] 진행률 바 */}
+          {/* 진행률 바 */}
           {hasSubtasks && totalSubtasks > 0 && (
             <div className="w-16 h-1 bg-gray-200 rounded-full overflow-hidden mt-1">
               <div
@@ -469,75 +469,88 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
         </div>
       )}
 
-      {/* ── [기능 1] 세부 항목 섹션 ── */}
+      {/* ── 세부 항목 섹션 ── */}
+      {/* [수정 1] 조건 없이 항상 렌더링 — subtasksExpanded 제거 */}
       {showSubtaskSection && (
         <div className="px-4 pb-2 flex flex-col gap-1 bg-indigo-50/30">
           {/* 서브태스크 목록 */}
-          {visibleSubtasks.map(sub => (
-            <div
-              key={sub.id}
-              className={`flex items-center gap-2 pl-7 py-1 rounded-lg group transition-colors ${
-                sub.completed ? 'opacity-60' : 'hover:bg-indigo-50/60'
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={sub.completed}
-                onChange={(e) => { e.stopPropagation(); onToggleSubtask(task.id, sub.id); }}
-                onClick={(e) => e.stopPropagation()}
-                aria-label={`${sub.title} 완료 토글`}
-                className="w-3.5 h-3.5 cursor-pointer accent-indigo-500 flex-shrink-0"
-              />
-
-              {editingSubtaskId === sub.id ? (
+          {/* [수정 3] max-h + overflow-y:auto — 항목 많을 때 스크롤 */}
+          <div className={totalSubtasks > 10 ? 'max-h-64 overflow-y-auto' : ''}>
+            {visibleSubtasks.map(sub => (
+              <div
+                key={sub.id}
+                className={`flex items-center gap-2 pl-7 py-1 rounded-lg group transition-colors ${
+                  sub.completed ? 'opacity-60' : 'hover:bg-indigo-50/60'
+                }`}
+              >
+                {/* [수정 3] stopPropagation — 부모 완료 토글 방지 */}
                 <input
-                  ref={editSubtaskInputRef}
-                  value={editingSubtaskValue}
-                  onChange={e => setEditingSubtaskValue(e.target.value.slice(0, TITLE_MAX))}
-                  onKeyDown={handleEditSubtaskKeyDown}
-                  onBlur={saveEditSubtask}
-                  maxLength={TITLE_MAX}
-                  className="flex-1 text-sm border-b border-indigo-400 bg-transparent focus:outline-none py-0.5"
+                  type="checkbox"
+                  checked={sub.completed}
+                  onChange={(e) => { e.stopPropagation(); onToggleSubtask(task.id, sub.id); }}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label={`${sub.title} 완료 토글`}
+                  className="w-3.5 h-3.5 cursor-pointer accent-indigo-500 flex-shrink-0"
                 />
-              ) : (
-                <span className={`text-sm flex-1 ${sub.completed ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                  {sub.title}
-                </span>
-              )}
 
-              {sub.dueDate && editingSubtaskId !== sub.id && (
-                <span className="text-xs flex-shrink-0 text-gray-400">
-                  완료: {sub.dueDate}
-                </span>
-              )}
+                {editingSubtaskId === sub.id ? (
+                  <input
+                    ref={editSubtaskInputRef}
+                    value={editingSubtaskValue}
+                    onChange={e => setEditingSubtaskValue(e.target.value.slice(0, TITLE_MAX))}
+                    onKeyDown={handleEditSubtaskKeyDown}
+                    onBlur={saveEditSubtask}  // [수정 3] blur 시 저장
+                    maxLength={TITLE_MAX}
+                    className="flex-1 border-b border-indigo-400 bg-transparent focus:outline-none py-0.5"
+                    style={{ fontSize: '13px' }}
+                  />
+                ) : (
+                  <span
+                    className={`flex-1 ${sub.completed ? 'line-through' : ''}`}
+                    style={{
+                      fontSize: '13px',
+                      color: sub.completed ? '#9CA3AF' : '#888888',
+                      opacity: sub.completed ? 0.5 : 1,
+                    }}
+                  >
+                    {sub.title}
+                  </span>
+                )}
 
-              {/* 수정/삭제 아이콘 (hover 시 표시) */}
-              <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                {editingSubtaskId !== sub.id && (
+                {sub.dueDate && editingSubtaskId !== sub.id && (
+                  <span className="text-xs flex-shrink-0 text-gray-400">
+                    완료: {sub.dueDate}
+                  </span>
+                )}
+
+                {/* 수정/삭제 아이콘 (hover 시 표시) */}
+                <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                  {editingSubtaskId !== sub.id && (
+                    <button
+                      type="button"
+                      onClick={() => startEditSubtask(sub)}
+                      aria-label={`${sub.title} 수정`}
+                      title="수정"
+                      className="text-gray-400 hover:text-blue-500 text-xs p-0.5 rounded focus:outline-none"
+                    >
+                      ✏️
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => startEditSubtask(sub)}
-                    aria-label={`${sub.title} 수정`}
-                    title="수정"
-                    className="text-gray-400 hover:text-blue-500 text-xs p-0.5 rounded focus:outline-none"
+                    onClick={() => deleteSubtask(sub.id)}
+                    aria-label={`${sub.title} 삭제`}
+                    title="삭제"
+                    className="text-gray-400 hover:text-red-500 text-xs p-0.5 rounded focus:outline-none"
                   >
-                    ✏️
+                    🗑️
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => deleteSubtask(sub.id)}
-                  aria-label={`${sub.title} 삭제`}
-                  title="삭제"
-                  className="text-gray-400 hover:text-red-500 text-xs p-0.5 rounded focus:outline-none"
-                >
-                  🗑️
-                </button>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
 
-          {/* 더보기 토글 */}
+          {/* 더보기 토글 (5개 초과 시) */}
           {!showAllSubtasks && hiddenSubtaskCount > 0 && (
             <button
               type="button"
@@ -567,6 +580,7 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
                 value={newSubtaskTitle}
                 onChange={e => setNewSubtaskTitle(e.target.value.slice(0, TITLE_MAX))}
                 onKeyDown={handleAddSubtaskKeyDown}
+                onBlur={() => { if (!newSubtaskTitle.trim()) setAddingSubtask(false); }}
                 placeholder="세부 항목명 입력 후 Enter"
                 maxLength={TITLE_MAX}
                 className="flex-1 text-sm border-b border-indigo-400 bg-transparent focus:outline-none py-0.5 placeholder-gray-300"
@@ -597,7 +611,7 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
             </button>
           )}
 
-          {/* [기능 1] 실행취소 스낵바 (삭제 후 3초) */}
+          {/* 실행취소 스낵바 (삭제 후 3초) */}
           {undoInfo && (
             <div
               className="flex items-center justify-between mx-1 mt-1 px-3 py-2 rounded-lg text-xs"
