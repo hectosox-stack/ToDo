@@ -1,8 +1,8 @@
-// [기능 2] trashedTasks, restoreTask, permanentDeleteTask, clearTrash 추가
-// [기능 2] activeCategory === 'trash' 시 TrashView 렌더링
-// [기능 2] Sidebar에 trashedCount prop 전달
+// [수정 2] React.lazy + Suspense 적용 — 모달 컴포넌트 동적 로드로 초기 번들 크기 축소
+// [수정 2] useCallback 적용 — 핸들러 레퍼런스 안정화 → React.memo 효과 극대화
+// [수정 2] loading 전달 → TaskList 스켈레톤 UI 연동
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { CategoryProvider } from './store/CategoryContext';
 import { useTasks } from './store/useTasks';
 import { useCategoryContext } from './store/CategoryContext';
@@ -10,10 +10,12 @@ import { useRecurringTasks } from './store/useRecurringTasks';
 import Sidebar from './components/Sidebar';
 import TaskInput from './components/TaskInput';
 import TaskList from './components/TaskList';
-import CategoryManager from './components/CategoryManager';
 import MiniCalendar from './components/MiniCalendar';
-import RecurringTaskManager from './components/RecurringTaskManager';
-import TrashView from './components/TrashView';
+
+// [수정 2] 모달은 초기 로드 시 불필요 → lazy import로 분리
+const CategoryManager    = lazy(() => import('./components/CategoryManager'));
+const RecurringTaskManager = lazy(() => import('./components/RecurringTaskManager'));
+const TrashView          = lazy(() => import('./components/TrashView'));
 
 type DateFilterType = 'createdAt' | 'completedAt';
 export type FilterMode = 'all' | 'month' | 'custom' | 'date';
@@ -28,6 +30,7 @@ function AppContent() {
   const {
     tasks,
     trashedTasks,
+    loading,
     addTask,
     updateTask,
     deleteTask,
@@ -70,7 +73,9 @@ function AppContent() {
   const [titleDraft, setTitleDraft] = useState<string>('');
   const titleInputRef = useRef<HTMLInputElement>(null);
 
-  function handleAdd(
+  // [수정 2] useCallback — addTask는 stable(useTasks에서 useCallback으로 감싸짐)
+  //           → handleAdd도 stable → TaskInput 불필요 리렌더 방지
+  const handleAdd = useCallback((
     title: string,
     category: string,
     startDate?: string,
@@ -78,9 +83,9 @@ function AppContent() {
     note?: string,
     subtasks?: import('./types').SubTask[],
     important?: boolean
-  ) {
+  ) => {
     addTask({ title, category, createdAt: startDate ?? '', dueDate, note, subtasks, important });
-  }
+  }, [addTask]);
 
   function handleFilterModeChange(mode: FilterMode) {
     setFilterMode(mode);
@@ -265,18 +270,21 @@ function AppContent() {
                 </span>
                 <span className="text-xs text-gray-400 ml-1">삭제된 항목은 30일 후 자동으로 영구 삭제됩니다</span>
               </div>
-              <TrashView
-                trashedTasks={trashedTasks}
-                onRestore={restoreTask}
-                onPermanentDelete={permanentDeleteTask}
-                onClearTrash={clearTrash}
-              />
+              <Suspense fallback={null}>
+                <TrashView
+                  trashedTasks={trashedTasks}
+                  onRestore={restoreTask}
+                  onPermanentDelete={permanentDeleteTask}
+                  onClearTrash={clearTrash}
+                />
+              </Suspense>
             </>
           ) : (
             <>
               <TaskInput onAdd={handleAdd} />
               <TaskList
                 tasks={filteredTasks}
+                loading={loading}
                 onToggle={toggleComplete}
                 onToggleSubtask={toggleSubtask}
                 onUpdate={updateTask}
@@ -325,20 +333,22 @@ function AppContent() {
         )}
       </div>
 
-      {managerOpen && (
-        <CategoryManager tasks={tasks} onClose={() => setManagerOpen(false)} />
-      )}
-
-      {recurringManagerOpen && (
-        <RecurringTaskManager
-          recurringTasks={recurringTasks}
-          onAdd={addRecurring}
-          onUpdate={updateRecurring}
-          onDelete={deleteRecurring}
-          onToggleActive={toggleActive}
-          onClose={() => setRecurringManagerOpen(false)}
-        />
-      )}
+      {/* [수정 2] Suspense: lazy 모달 로드 중 fallback null (모달은 열릴 때만 로드됨) */}
+      <Suspense fallback={null}>
+        {managerOpen && (
+          <CategoryManager tasks={tasks} onClose={() => setManagerOpen(false)} />
+        )}
+        {recurringManagerOpen && (
+          <RecurringTaskManager
+            recurringTasks={recurringTasks}
+            onAdd={addRecurring}
+            onUpdate={updateRecurring}
+            onDelete={deleteRecurring}
+            onToggleActive={toggleActive}
+            onClose={() => setRecurringManagerOpen(false)}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

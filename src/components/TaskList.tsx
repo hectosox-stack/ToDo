@@ -1,4 +1,6 @@
-import { useMemo } from 'react';
+// [수정 2] loading prop + 스켈레톤 UI 추가 → 최초 로드 시 빈 화면 대신 플레이스홀더 표시
+// [수정 2] React.memo 적용 → 부모 리렌더 시 불필요한 재렌더 방지
+import { useMemo, memo } from 'react';
 import type { Task } from '../types';
 import type { FilterMode } from '../App';
 import TaskItem from './TaskItem';
@@ -7,6 +9,7 @@ type DateFilterType = 'createdAt' | 'completedAt';
 
 interface TaskListProps {
   tasks: Task[];
+  loading?: boolean;  // [수정 2] 최초 로드 스켈레톤 표시용
   onToggle: (id: string) => void;
   onToggleSubtask: (taskId: string, subtaskId: string) => void;
   onUpdate: (id: string, changes: Partial<Task>) => void;
@@ -44,8 +47,8 @@ function sortTasks(tasks: Task[]): Task[] {
   return [...importantIncomplete, ...normalIncomplete, ...importantComplete, ...normalComplete];
 }
 
-export default function TaskList({
-  tasks, onToggle, onToggleSubtask, onUpdate, onDelete,
+function TaskList({
+  tasks, loading = false, onToggle, onToggleSubtask, onUpdate, onDelete,
   dateFilterType, onDateFilterTypeChange,
   dateFrom, onDateFromChange,
   dateTo, onDateToChange,
@@ -268,7 +271,27 @@ export default function TaskList({
 
       {/* 목록 */}
       <div role="list" aria-label="할 일 목록">
-        {sorted.length === 0 ? (
+        {/* [수정 2] 스켈레톤 UI — 최초 로드 시 빈 화면 대신 회색 플레이스홀더 */}
+        {loading ? (
+          <div className="flex flex-col" aria-busy="true" aria-label="로딩 중">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
+                <div className="w-4 h-4 bg-gray-200 rounded animate-pulse flex-shrink-0" />
+                <div className="w-4 h-4 bg-gray-200 rounded animate-pulse flex-shrink-0" />
+                <div className="flex-1 flex flex-col gap-1.5">
+                  <div
+                    className="h-3.5 bg-gray-200 rounded animate-pulse"
+                    style={{ width: `${55 + (i % 3) * 15}%` }}
+                  />
+                </div>
+                <div className="w-16 h-3 bg-gray-100 rounded animate-pulse flex-shrink-0" />
+                <div className="w-16 h-3 bg-gray-100 rounded animate-pulse flex-shrink-0" />
+                <div className="w-16 h-3 bg-gray-100 rounded animate-pulse flex-shrink-0" />
+                <div className="w-16 h-3 bg-gray-100 rounded animate-pulse flex-shrink-0" />
+              </div>
+            ))}
+          </div>
+        ) : sorted.length === 0 ? (
           <div className="px-4 py-12 text-center text-gray-400 text-sm" aria-live="polite">
             {emptyMessage}
           </div>
@@ -289,3 +312,6 @@ export default function TaskList({
     </div>
   );
 }
+
+// [수정 2] React.memo 적용 — tasks/loading 변경 없는 부모 리렌더 시 재렌더 방지
+export default memo(TaskList);

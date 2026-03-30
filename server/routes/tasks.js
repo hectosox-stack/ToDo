@@ -21,16 +21,17 @@ router.get('/', async (req, res) => {
 });
 
 // ── POST / — 할일 생성
+// [수정 1] subtasks 컬럼 추가 — 새 할일 저장 시 세부 항목 함께 저장
 router.post('/', async (req, res) => {
   const {
     title, note, category, important,
-    due_date, created_at, repeat_task_id,
+    due_date, created_at, repeat_task_id, subtasks,
   } = req.body;
   try {
     const result = await pool.query(
       `INSERT INTO tasks
-         (title, note, category, important, due_date, created_at, repeat_task_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+         (title, note, category, important, due_date, created_at, repeat_task_id, subtasks)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [
         title,
@@ -40,6 +41,7 @@ router.post('/', async (req, res) => {
         due_date       ?? null,
         created_at     ?? null,
         repeat_task_id ?? null,
+        JSON.stringify(subtasks ?? []),
       ]
     );
     res.status(201).json(result.rows[0]);

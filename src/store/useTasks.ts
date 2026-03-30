@@ -1,21 +1,19 @@
-// [수정] updateTask PUT body에 is_deleted/deleted_at 추가
-// [수정] deleteTask: hard DELETE → soft DELETE (PUT is_deleted:true)로 변경
-//        → 휴지통(trashedTasks) 이동이 DB에 실제로 반영되도록 수정
-// GET    /api/tasks       — 목록 조회
-// POST   /api/tasks       — 할일 추가
-// PUT    /api/tasks/:id   — 할일 수정 (부분 업데이트)
-// DELETE /api/tasks/:id   — 영구 삭제 (휴지통에서만 사용)
+// [수정 1] addTask POST body에 subtasks 포함 → 새 할일 저장 시 세부 항목 즉시 표시
+// [수정 2-1] Optimistic Update: API 응답 전 즉시 UI 반영, 실패 시 롤백
+// [수정 2-2] useCallback + useRef로 stable callback 생성
+//            → React.memo(TaskItem) 리렌더 방지 (함수 props 레퍼런스 안정화)
+// [수정 2-3] loading state 추가 → 최초 로드 스켈레톤 UI 지원
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Task } from '../types';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:4000') + '/api/tasks';
 
-// DB 응답(snake_case) → Task 타입(camelCase) 변환
+// DB row(snake_case) → Task(camelCase)
 function toTask(row: Record<string, unknown>): Task {
   return {
     id:           String(row.id),
-    title:        (row.title as string) || '',   // null 방어
+    title:        (row.title as string) || '',
     category:     (row.category_id ?? row.category ?? '') as string,
     completed:    (row.completed ?? false) as boolean,
     createdAt:    (row.created_at ?? new Date().toISOString()) as string,
@@ -33,27 +31,56 @@ function toTask(row: Record<string, unknown>): Task {
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [trashedTasks, setTrashedTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // 마운트 시 자동 조회
-  useEffect(() => {
-    fetchTasks();
-  }, []);
+  // [수정 2-2] Ref: stable callback이 최신 state를 읽기 위한 참조
+  // 함수 내부에서 tasks를 dependency로 사용하지 않고도 최신값 접근 가능
+  const tasksRef   = useRef<Task[]>([]);
+  const trashedRef = useRef<Task[]>([]);
+  tasksRef.current   = tasks;
+  trashedRef.current = trashedTasks;
 
-  // GET /api/tasks — 전체 조회
-  async function fetchTasks() {
+  // ── 전체 조회 — stable (no dependencies)
+  const fetchTasks = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await fetch(API_URL);
-      const data: Record<string, unknown>[] = await res.json();
-      const all = data.map(toTask);
+      const res  = await fetch(API_URL);
+      const data = (await res.json()) as Record<string, unknown>[];
+      const all  = data.map(toTask);
       setTasks(all.filter(t => !t.isDeleted));
       setTrashedTasks(all.filter(t => t.isDeleted));
     } catch (err) {
       console.error('[fetchTasks]', err);
+    } finally {
+      setLoading(false);
     }
-  }
+  }, []); // 의존성 없음 → 마운트 후 레퍼런스 불변
 
-  // POST /api/tasks — 할일 추가
-  function addTask(task: Omit<Task, 'id' | 'completed'> & { createdAt?: string }): void {
+  useEffect(() => { fetchTasks(); }, [fetchTasks]);
+
+  // ── 할일 추가 — Optimistic Update
+  // [수정 1] subtasks 포함, 임시 ID로 즉시 리스트 표시 → 서버 응답 후 교체
+  const addTask = useCallback((task: Omit<Task, 'id' | 'completed'> & { createdAt?: string }): void => {
+    const tempId = `temp-${Date.now()}`;
+    const now    = task.createdAt ?? new Date().toISOString();
+
+    // 1. 즉시 리스트 추가 (세부 항목 포함)
+    const optimistic: Task = {
+      id:          tempId,
+      title:       task.title,
+      category:    task.category,
+      completed:   false,
+      createdAt:   now,
+      dueDate:     task.dueDate,
+      note:        task.note,
+      important:   task.important ?? false,
+      subtasks:    task.subtasks ?? [],
+      isDeleted:   false,
+      repeatTaskId: task.repeatTaskId,
+    };
+    setTasks(prev => [optimistic, ...prev]);
+
+    // 2. API 저장 (subtasks 포함)
     fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -63,32 +90,45 @@ export function useTasks() {
         category:       task.category,
         important:      task.important ?? false,
         due_date:       task.dueDate ?? null,
-        created_at:     task.createdAt ?? new Date().toISOString(),
+        created_at:     now,
         repeat_task_id: task.repeatTaskId ?? null,
+        subtasks:       task.subtasks ?? [],   // [수정 1] 세부 항목 포함
       }),
     })
       .then(res => res.json())
-      .then(row => setTasks(prev => [toTask(row), ...prev]))
-      .catch(err => console.error('[addTask]', err));
-  }
+      .then(row => {
+        // 임시 항목 → 서버 확정 데이터로 교체
+        setTasks(prev => prev.map(t => t.id === tempId ? toTask(row) : t));
+      })
+      .catch(err => {
+        console.error('[addTask]', err);
+        setTasks(prev => prev.filter(t => t.id !== tempId)); // 롤백
+      });
+  }, []); // stable
 
-  // PUT /api/tasks/:id — 부분 수정
-  // body에 undefined 값은 JSON.stringify 시 누락되어 백엔드에서 무시됨
-  // → title 등 기존 값이 NULL로 덮어씌워지지 않음
-  function updateTask(id: string, changes: Partial<Omit<Task, 'id'>>): void {
+  // ── 할일 수정 — Optimistic Update
+  // [수정 2-1] API 응답 전 즉시 UI 반영, 서버 응답 후 최종 동기화
+  const updateTask = useCallback((id: string, changes: Partial<Omit<Task, 'id'>>): void => {
+    // 1. 즉시 로컬 state 업데이트
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...changes } : t));
+
+    // 2. API 전송
     fetch(`${API_URL}/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        title:          changes.title,
-        note:           changes.note,
-        completed:      changes.completed,
-        important:      changes.important,
-        due_date:       changes.dueDate,
-        completed_at:   changes.completedAt,
-        subtasks:       changes.subtasks,
-        is_deleted:     changes.isDeleted,
-        deleted_at:     changes.deletedAt,
+        title:        changes.title,
+        note:         changes.note,
+        completed:    changes.completed,
+        important:    changes.important,
+        due_date:     changes.dueDate,
+        // completed_at: false로 바뀔 때 null 전송하여 DB 클리어
+        completed_at: Object.hasOwn(changes, 'completedAt')
+          ? (changes.completedAt ?? null)
+          : undefined,
+        subtasks:     changes.subtasks,
+        is_deleted:   changes.isDeleted,
+        deleted_at:   changes.deletedAt,
       }),
     })
       .then(res => res.json())
@@ -98,101 +138,140 @@ export function useTasks() {
           setTasks(prev => prev.filter(t => t.id !== id));
           setTrashedTasks(prev => prev.map(t => t.id === id ? updated : t));
         } else {
+          // 서버 응답으로 최종 동기화 (ID 등 서버 생성 값 반영)
           setTasks(prev => prev.map(t => t.id === id ? updated : t));
         }
       })
-      .catch(err => console.error('[updateTask]', err));
-  }
+      .catch(err => {
+        console.error('[updateTask]', err);
+        fetchTasks(); // 실패 시 재조회로 롤백
+      });
+  }, [fetchTasks]); // fetchTasks만 의존 (stable)
 
-  // 소프트 삭제 — PUT is_deleted:true → 휴지통 이동
-  // [수정] 이전: DELETE(영구삭제) → 현재: PUT(is_deleted=true)로 변경
-  function deleteTask(id: string): void {
-    const task = tasks.find(t => t.id === id);
-    const now = new Date().toISOString();
+  // ── 소프트 삭제 — Optimistic Update
+  const deleteTask = useCallback((id: string): void => {
+    const task = tasksRef.current.find(t => t.id === id);
+    const now  = new Date().toISOString();
+
+    // 즉시 리스트에서 제거 → 휴지통 이동
+    setTasks(prev => prev.filter(t => t.id !== id));
+    if (task) {
+      setTrashedTasks(prev => [{ ...task, isDeleted: true, deletedAt: now }, ...prev]);
+    }
+
     fetch(`${API_URL}/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_deleted: true, deleted_at: now }),
     })
-      .then(() => {
-        setTasks(prev => prev.filter(t => t.id !== id));
-        if (task) {
-          setTrashedTasks(prev => [
-            { ...task, isDeleted: true, deletedAt: now },
-            ...prev,
-          ]);
-        }
-      })
-      .catch(err => console.error('[deleteTask]', err));
-  }
+      .catch(err => {
+        console.error('[deleteTask]', err);
+        fetchTasks(); // 롤백
+      });
+  }, [fetchTasks]); // stable
 
-  // 완료 토글 → PUT
-  function toggleComplete(id: string): void {
-    const task = tasks.find(t => t.id === id);
+  // ── 완료 토글 — Optimistic Update
+  const toggleComplete = useCallback((id: string): void => {
+    const task = tasksRef.current.find(t => t.id === id);
     if (!task) return;
     const completed = !task.completed;
-    updateTask(id, {
-      completed,
-      completedAt: completed ? new Date().toISOString() : undefined,
-      subtasks: task.subtasks?.map(s => ({ ...s, completed })),
-    });
-  }
+    const completedAt = completed ? new Date().toISOString() : undefined;
+    const subtasks = task.subtasks?.map(s => ({ ...s, completed }));
 
-  // 서브태스크 완료 토글 → PUT
-  function toggleSubtask(taskId: string, subtaskId: string): void {
-    const task = tasks.find(t => t.id === taskId);
+    // 즉시 반영
+    setTasks(prev => prev.map(t => t.id === id
+      ? { ...t, completed, completedAt, subtasks }
+      : t
+    ));
+
+    fetch(`${API_URL}/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        completed,
+        completed_at: completedAt ?? null,
+        subtasks:     subtasks ?? [],
+      }),
+    })
+      .then(res => res.json())
+      .then(row => setTasks(prev => prev.map(t => t.id === id ? toTask(row) : t)))
+      .catch(err => { console.error('[toggleComplete]', err); fetchTasks(); });
+  }, [fetchTasks]); // stable
+
+  // ── 서브태스크 완료 토글 — Optimistic Update
+  const toggleSubtask = useCallback((taskId: string, subtaskId: string): void => {
+    const task = tasksRef.current.find(t => t.id === taskId);
     if (!task) return;
+
     const updatedSubtasks = (task.subtasks ?? []).map(s => {
       if (s.id !== subtaskId) return s;
       const completed = !s.completed;
       return { ...s, completed, dueDate: completed ? new Date().toISOString().slice(0, 10) : undefined };
     });
-    const allDone = updatedSubtasks.length > 0 && updatedSubtasks.every(s => s.completed);
-    updateTask(taskId, {
-      subtasks: updatedSubtasks,
-      completed: allDone,
-      completedAt: allDone && !task.completed ? new Date().toISOString() : undefined,
-    });
-  }
+    const allDone   = updatedSubtasks.length > 0 && updatedSubtasks.every(s => s.completed);
+    const completed = allDone;
+    const completedAt = allDone && !task.completed ? new Date().toISOString() : undefined;
 
-  // 완료 항목 일괄 삭제 (소프트 삭제)
-  function clearCompleted(): void {
-    tasks.filter(t => t.completed).forEach(t => deleteTask(t.id));
-  }
+    // 즉시 반영 (진행률 카운트 즉시 업데이트)
+    setTasks(prev => prev.map(t => t.id === taskId
+      ? { ...t, subtasks: updatedSubtasks, completed, completedAt }
+      : t
+    ));
 
-  // 휴지통 복원 → PUT is_deleted:false
-  function restoreTask(id: string): void {
-    const task = trashedTasks.find(t => t.id === id);
+    fetch(`${API_URL}/${taskId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subtasks:     updatedSubtasks,
+        completed,
+        completed_at: completedAt ?? null,
+      }),
+    })
+      .then(res => res.json())
+      .then(row => setTasks(prev => prev.map(t => t.id === taskId ? toTask(row) : t)))
+      .catch(err => { console.error('[toggleSubtask]', err); fetchTasks(); });
+  }, [fetchTasks]); // stable
+
+  // ── 완료 항목 일괄 소프트 삭제
+  const clearCompleted = useCallback((): void => {
+    tasksRef.current.filter(t => t.completed).forEach(t => deleteTask(t.id));
+  }, [deleteTask]); // stable
+
+  // ── 휴지통 복원 — Optimistic Update
+  const restoreTask = useCallback((id: string): void => {
+    const task = trashedRef.current.find(t => t.id === id);
     if (!task) return;
+
+    setTrashedTasks(prev => prev.filter(t => t.id !== id));
+    setTasks(prev => [{ ...task, isDeleted: false, deletedAt: undefined }, ...prev]);
+
     fetch(`${API_URL}/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_deleted: false, deleted_at: null }),
     })
-      .then(() => {
-        setTrashedTasks(prev => prev.filter(t => t.id !== id));
-        setTasks(prev => [{ ...task, isDeleted: false, deletedAt: undefined }, ...prev]);
-      })
-      .catch(err => console.error('[restoreTask]', err));
-  }
+      .catch(err => { console.error('[restoreTask]', err); fetchTasks(); });
+  }, [fetchTasks]); // stable
 
-  // 영구 삭제 → DELETE
-  function permanentDeleteTask(id: string): void {
+  // ── 영구 삭제 — Optimistic Update
+  const permanentDeleteTask = useCallback((id: string): void => {
+    setTrashedTasks(prev => prev.filter(t => t.id !== id));
     fetch(`${API_URL}/${id}`, { method: 'DELETE' })
-      .then(() => setTrashedTasks(prev => prev.filter(t => t.id !== id)))
-      .catch(err => console.error('[permanentDeleteTask]', err));
-  }
+      .catch(err => { console.error('[permanentDeleteTask]', err); fetchTasks(); });
+  }, [fetchTasks]); // stable
 
-  // 휴지통 전체 영구 삭제
-  function clearTrash(): void {
-    Promise.all(trashedTasks.map(t =>
-      fetch(`${API_URL}/${t.id}`, { method: 'DELETE' })
-    )).then(() => setTrashedTasks([]));
-  }
+  // ── 휴지통 전체 영구 삭제 — Optimistic Update
+  const clearTrash = useCallback((): void => {
+    const ids = trashedRef.current.map(t => t.id);
+    setTrashedTasks([]);
+    Promise.all(ids.map(id => fetch(`${API_URL}/${id}`, { method: 'DELETE' })))
+      .catch(err => { console.error('[clearTrash]', err); fetchTasks(); });
+  }, [fetchTasks]); // stable
 
   return {
     tasks,
     trashedTasks,
+    loading,
     addTask,
     updateTask,
     deleteTask,
