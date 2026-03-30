@@ -48,6 +48,7 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
   const [subtasksExpanded, setSubtasksExpanded] = useState(
     () => (task.subtasks?.length ?? 0) > 0
   );
+  const [showAllSubtasks, setShowAllSubtasks] = useState(false);
 
   // [기능 1] 서브태스크 CRUD 상태
   const [addingSubtask, setAddingSubtask] = useState(false);
@@ -64,6 +65,12 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
   const hasSubtasks = (task.subtasks?.length ?? 0) > 0;
   const completedSubtasks = task.subtasks?.filter(s => s.completed).length ?? 0;
   const totalSubtasks = task.subtasks?.length ?? 0;
+
+  const SUBTASK_LIMIT = 5;
+  const hiddenSubtaskCount = Math.max(0, totalSubtasks - SUBTASK_LIMIT);
+  const visibleSubtasks = showAllSubtasks
+    ? (task.subtasks ?? [])
+    : (task.subtasks ?? []).slice(0, SUBTASK_LIMIT);
 
   // 서브태스크 섹션 표시 조건: 펼쳐져 있고, (서브태스크 있거나 추가 중)
   const showSubtaskSection = subtasksExpanded && (hasSubtasks || addingSubtask);
@@ -295,7 +302,9 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
                 className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-600 transition-colors focus:outline-none flex-shrink-0"
                 aria-label={subtasksExpanded ? '세부 항목 접기' : '세부 항목 펼치기'}
               >
-                <span className={`transition-transform duration-150 ${subtasksExpanded ? 'rotate-90' : ''}`}>▶</span>
+                <span className="transition-transform duration-150">
+                  {subtasksExpanded ? '▲' : '▼'}
+                </span>
                 <span className={completedSubtasks === totalSubtasks ? 'text-green-500' : ''}>
                   {completedSubtasks}/{totalSubtasks}
                 </span>
@@ -464,7 +473,7 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
       {showSubtaskSection && (
         <div className="px-4 pb-2 flex flex-col gap-1 bg-indigo-50/30">
           {/* 서브태스크 목록 */}
-          {(task.subtasks ?? []).map(sub => (
+          {visibleSubtasks.map(sub => (
             <div
               key={sub.id}
               className={`flex items-center gap-2 pl-7 py-1 rounded-lg group transition-colors ${
@@ -474,7 +483,8 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
               <input
                 type="checkbox"
                 checked={sub.completed}
-                onChange={() => onToggleSubtask(task.id, sub.id)}
+                onChange={(e) => { e.stopPropagation(); onToggleSubtask(task.id, sub.id); }}
+                onClick={(e) => e.stopPropagation()}
                 aria-label={`${sub.title} 완료 토글`}
                 className="w-3.5 h-3.5 cursor-pointer accent-indigo-500 flex-shrink-0"
               />
@@ -526,6 +536,26 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
               </div>
             </div>
           ))}
+
+          {/* 더보기 토글 */}
+          {!showAllSubtasks && hiddenSubtaskCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowAllSubtasks(true)}
+              className="ml-7 text-xs text-indigo-400 hover:text-indigo-600 transition-colors focus:outline-none"
+            >
+              외 {hiddenSubtaskCount}개 더보기
+            </button>
+          )}
+          {showAllSubtasks && hiddenSubtaskCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowAllSubtasks(false)}
+              className="ml-7 text-xs text-gray-400 hover:text-gray-600 transition-colors focus:outline-none"
+            >
+              접기
+            </button>
+          )}
 
           {/* 추가 입력 폼 */}
           {addingSubtask ? (
