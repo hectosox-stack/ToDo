@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 4000;
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    'https://your-app.onrender.com' // Render 배포 후 실제 도메인으로 교체
+    'https://todo-backend-orrt.onrender.com'
   ]
 }));
 app.use(express.json());
