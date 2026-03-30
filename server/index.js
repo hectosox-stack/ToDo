@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 4000;
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    'https://todo-backend-orrt.onrender.com'
+    'https://todo-wnvd.onrender.com'  // 프론트엔드 배포 URL
   ]
 }));
 app.use(express.json());

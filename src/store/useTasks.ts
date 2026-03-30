@@ -7,7 +7,7 @@
 import { useState, useEffect } from 'react';
 import type { Task } from '../types';
 
-const API_URL = import.meta.env.VITE_API_URL + '/api/tasks';
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:4000') + '/api/tasks';
 
 // DB 응답(snake_case) → Task 타입(camelCase) 변환
 function toTask(row: Record<string, unknown>): Task {
