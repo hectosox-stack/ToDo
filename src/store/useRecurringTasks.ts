@@ -3,6 +3,7 @@
 // - runAutoGenerate: 앱 마운트 시 오늘 생성 예정 반복 업무 자동 할일 생성
 // - lastGeneratedDate 로 중복 생성 방지
 // - 삭제/수정/비활성화는 기존 생성된 할일에 소급 미적용
+// [기능 3] 'daily' | 'specific_days' 주기 추가
 
 import { useState, useEffect, useRef } from 'react';
 import type { RecurringTask, Task, RepeatCycle } from '../types';
@@ -25,6 +26,7 @@ function addDaysToDate(dateStr: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+// [기능 3] 'daily'/'specific_days' 케이스 추가
 function isScheduledToday(rt: RecurringTask, today: string): boolean {
   if (today < rt.startDate) return false;
   if (rt.endDate && today > rt.endDate) return false;
@@ -32,6 +34,15 @@ function isScheduledToday(rt: RecurringTask, today: string): boolean {
   const now   = new Date(today + 'T00:00:00');
   const diffDays = Math.round((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
   switch (rt.repeatCycle as RepeatCycle) {
+    case 'daily':
+      // 시작일 이후 매일
+      return diffDays >= 0;
+    case 'specific_days': {
+      // 선택된 요일에만 생성
+      if (!rt.repeatDays || rt.repeatDays.length === 0) return false;
+      const DAY_KEYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+      return rt.repeatDays.includes(DAY_KEYS[now.getDay()]);
+    }
     case 'weekly':    return diffDays >= 0 && diffDays % 7  === 0;
     case 'biweekly':  return diffDays >= 0 && diffDays % 14 === 0;
     case 'monthly':   return diffDays >= 0 && now.getDate() === start.getDate();

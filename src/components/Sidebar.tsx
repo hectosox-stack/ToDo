@@ -1,3 +1,5 @@
+// [기능 2] trashedCount prop 추가 + 카테고리 목록 하단에 🗑 휴지통 버튼 추가
+
 import type { Task } from '../types';
 import { useCategoryContext } from '../store/CategoryContext';
 import { COLOR_PALETTE } from '../constants';
@@ -9,6 +11,7 @@ interface SidebarProps {
   onCategoryChange: (id: string) => void;
   showCompleted: boolean;
   onShowCompletedChange: (v: boolean) => void;
+  trashedCount: number; // [기능 2]
 }
 
 export default function Sidebar({
@@ -17,6 +20,7 @@ export default function Sidebar({
   onCategoryChange,
   showCompleted,
   onShowCompletedChange,
+  trashedCount,
 }: SidebarProps) {
   const { categories } = useCategoryContext();
 
@@ -69,6 +73,26 @@ export default function Sidebar({
               </button>
             );
           })}
+
+          {/* [기능 2] 휴지통 — 카테고리 목록 최하단 */}
+          <div className="mt-2 pt-2 border-t border-gray-100">
+            <button
+              role="tab"
+              aria-selected={activeCategory === 'trash'}
+              onClick={() => onCategoryChange('trash')}
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors text-left w-full focus:outline-none focus:ring-2 focus:ring-[#F05A28] ${
+                activeCategory === 'trash'
+                  ? 'bg-[#FFF4F0] text-[#F05A28] font-medium'
+                  : 'text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              <span className="text-sm flex-shrink-0">🗑️</span>
+              휴지통
+              {trashedCount > 0 && (
+                <span className="ml-auto text-xs text-gray-400">{trashedCount}</span>
+              )}
+            </button>
+          </div>
         </nav>
       </div>
 

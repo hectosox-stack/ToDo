@@ -33,18 +33,23 @@ export const STORAGE_KEY = 'tasks';
 export const CATEGORIES_STORAGE_KEY = 'categories';
 export const RECURRING_TASKS_STORAGE_KEY = 'recurringTasks';
 
+// [기능 3] 매일 / 특정 요일 추가
 export const REPEAT_CYCLE_LABELS: Record<string, string> = {
-  weekly:     '매주',
-  biweekly:   '격주',
-  monthly:    '매월',
-  halfyearly: '반기',
-  yearly:     '매년',
+  daily:         '매일',
+  specific_days: '특정 요일',
+  weekly:        '매주',
+  biweekly:      '격주',
+  monthly:       '매월',
+  halfyearly:    '반기',
+  yearly:        '매년',
 };
 
 export const REPEAT_CYCLE_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: 'weekly',     label: '매주 (7일마다)' },
-  { value: 'biweekly',   label: '격주 (14일마다)' },
-  { value: 'monthly',    label: '매월 (동일 일자)' },
-  { value: 'halfyearly', label: '반기 (6개월마다)' },
-  { value: 'yearly',     label: '매년' },
+  { value: 'daily',         label: '매일' },
+  { value: 'specific_days', label: '특정 요일' },
+  { value: 'weekly',        label: '매주 (7일마다)' },
+  { value: 'biweekly',      label: '격주 (14일마다)' },
+  { value: 'monthly',       label: '매월 (동일 일자)' },
+  { value: 'halfyearly',    label: '반기 (6개월마다)' },
+  { value: 'yearly',        label: '매년' },
 ];

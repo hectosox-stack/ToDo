@@ -1,3 +1,7 @@
+// [기능 2] trashedTasks, restoreTask, permanentDeleteTask, clearTrash 추가
+// [기능 2] activeCategory === 'trash' 시 TrashView 렌더링
+// [기능 2] Sidebar에 trashedCount prop 전달
+
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { CategoryProvider } from './store/CategoryContext';
 import { useTasks } from './store/useTasks';
@@ -9,6 +13,7 @@ import TaskList from './components/TaskList';
 import CategoryManager from './components/CategoryManager';
 import MiniCalendar from './components/MiniCalendar';
 import RecurringTaskManager from './components/RecurringTaskManager';
+import TrashView from './components/TrashView';
 
 type DateFilterType = 'createdAt' | 'completedAt';
 export type FilterMode = 'all' | 'month' | 'custom' | 'date';
@@ -20,7 +25,18 @@ function getMonthRange(year: number, month: number): { from: string; to: string 
 }
 
 function AppContent() {
-  const { tasks, addTask, updateTask, deleteTask, toggleComplete, toggleSubtask } = useTasks();
+  const {
+    tasks,
+    trashedTasks,
+    addTask,
+    updateTask,
+    deleteTask,
+    restoreTask,
+    permanentDeleteTask,
+    clearTrash,
+    toggleComplete,
+    toggleSubtask,
+  } = useTasks();
   const { categories } = useCategoryContext();
   const {
     recurringTasks,
@@ -68,42 +84,27 @@ function AppContent() {
 
   function handleFilterModeChange(mode: FilterMode) {
     setFilterMode(mode);
-
-    if (mode !== 'date') {
-      setCalSelectedDate(null);
-    }
-
+    if (mode !== 'date') setCalSelectedDate(null);
     if (mode === 'all') {
-      setDateFrom('');
-      setDateTo('');
+      setDateFrom(''); setDateTo('');
     } else if (mode === 'month') {
       const { from, to } = getMonthRange(filterYear, filterMonth);
-      setDateFrom(from);
-      setDateTo(to);
+      setDateFrom(from); setDateTo(to);
     }
   }
 
   function handleMonthChange(year: number, month: number) {
-    setFilterYear(year);
-    setFilterMonth(month);
-    setFilterMode('month');
-    setCalSelectedDate(null);
-
+    setFilterYear(year); setFilterMonth(month);
+    setFilterMode('month'); setCalSelectedDate(null);
     const { from, to } = getMonthRange(year, month);
-    setDateFrom(from);
-    setDateTo(to);
+    setDateFrom(from); setDateTo(to);
   }
 
   function handleDateFromChange(v: string) {
-    setDateFrom(v);
-    setFilterMode('custom');
-    setCalSelectedDate(null);
+    setDateFrom(v); setFilterMode('custom'); setCalSelectedDate(null);
   }
-
   function handleDateToChange(v: string) {
-    setDateTo(v);
-    setFilterMode('custom');
-    setCalSelectedDate(null);
+    setDateTo(v); setFilterMode('custom'); setCalSelectedDate(null);
   }
 
   function handleCalendarDateSelect(date: string) {
@@ -113,14 +114,12 @@ function AppContent() {
     } else {
       setCalSelectedDate(date);
       setFilterMode('date');
-      setDateFrom(date);
-      setDateTo(date);
+      setDateFrom(date); setDateTo(date);
     }
   }
 
   function handleCalendarMonthChange(year: number, month: number) {
-    setFilterYear(year);
-    setFilterMonth(month);
+    setFilterYear(year); setFilterMonth(month);
   }
 
   useEffect(() => {
@@ -136,19 +135,13 @@ function AppContent() {
   }, [editingTitle]);
 
   function handleTitleEdit() {
-    setTitleDraft(appTitle);
-    setEditingTitle(true);
+    setTitleDraft(appTitle); setEditingTitle(true);
   }
-
   function handleTitleSave() {
     const trimmed = titleDraft.trim();
-    if (trimmed) {
-      setAppTitle(trimmed);
-      localStorage.setItem('app-title', trimmed);
-    }
+    if (trimmed) { setAppTitle(trimmed); localStorage.setItem('app-title', trimmed); }
     setEditingTitle(false);
   }
-
   function handleTitleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter') handleTitleSave();
     if (e.key === 'Escape') setEditingTitle(false);
@@ -156,24 +149,26 @@ function AppContent() {
 
   const filteredTasks = useMemo(() => {
     let result =
-      activeCategory === 'all'
+      activeCategory === 'all' || activeCategory === 'trash'
         ? tasks
         : tasks.filter((t) => t.category === activeCategory);
-
-    if (!showCompleted) {
-      result = result.filter((t) => !t.completed);
-    }
-
+    if (!showCompleted) result = result.filter((t) => !t.completed);
     return result;
   }, [tasks, activeCategory, showCompleted]);
 
+  // 달력은 휴지통 뷰와 무관하게 비삭제 항목 기준
   const calendarTasks = useMemo(() => {
-    if (activeCategory === 'all') return tasks;
+    if (activeCategory === 'all' || activeCategory === 'trash') return tasks;
     return tasks.filter((t) => t.category === activeCategory);
   }, [tasks, activeCategory]);
 
+  // 카테고리 삭제 시 activeCategory 초기화 (trash는 유지)
   useMemo(() => {
-    if (activeCategory !== 'all' && !categories.find((c) => c.id === activeCategory)) {
+    if (
+      activeCategory !== 'all' &&
+      activeCategory !== 'trash' &&
+      !categories.find((c) => c.id === activeCategory)
+    ) {
       setActiveCategory('all');
     }
   }, [categories, activeCategory]);
@@ -207,7 +202,6 @@ function AppContent() {
                 {appTitle}
               </h1>
             )}
-
             <span
               className="text-xs font-medium px-2 py-0.5 rounded-full"
               style={{ backgroundColor: 'var(--brand-light)', color: 'var(--brand)' }}
@@ -228,7 +222,6 @@ function AppContent() {
             >
               📅 달력
             </button>
-
             <button
               onClick={() => setManagerOpen(true)}
               aria-label="카테고리 관리"
@@ -236,7 +229,6 @@ function AppContent() {
             >
               카테고리 관리
             </button>
-
             <button
               onClick={() => setRecurringManagerOpen(true)}
               aria-label="반복 업무 관리"
@@ -255,35 +247,61 @@ function AppContent() {
           onCategoryChange={setActiveCategory}
           showCompleted={showCompleted}
           onShowCompletedChange={setShowCompleted}
+          trashedCount={trashedTasks.length}
         />
 
         <main className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 min-w-0">
-          <TaskInput onAdd={handleAdd} />
-          <TaskList
-            tasks={filteredTasks}
-            onToggle={toggleComplete}
-            onToggleSubtask={toggleSubtask}
-            onUpdate={updateTask}
-            onDelete={deleteTask}
-            dateFilterType={dateFilterType}
-            onDateFilterTypeChange={setDateFilterType}
-            dateFrom={dateFrom}
-            onDateFromChange={handleDateFromChange}
-            dateTo={dateTo}
-            onDateToChange={handleDateToChange}
-            filterMode={filterMode}
-            onFilterModeChange={handleFilterModeChange}
-            filterYear={filterYear}
-            filterMonth={filterMonth}
-            onMonthChange={handleMonthChange}
-            showImportantOnly={showImportantOnly}
-            onShowImportantOnlyChange={setShowImportantOnly}
-            calSelectedDate={calSelectedDate}
-            onClearCalendarDate={() => {
-              setCalSelectedDate(null);
-              handleFilterModeChange('month');
-            }}
-          />
+          {/* [기능 2] 휴지통 뷰 */}
+          {activeCategory === 'trash' ? (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🗑️</span>
+                <h2 className="text-base font-semibold text-gray-700">휴지통</h2>
+                <span
+                  className="text-xs px-2 py-0.5 rounded-full font-medium"
+                  style={{ backgroundColor: '#FFF4F0', color: '#F05A28' }}
+                >
+                  {trashedTasks.length}개
+                </span>
+                <span className="text-xs text-gray-400 ml-1">삭제된 항목은 30일 후 자동으로 영구 삭제됩니다</span>
+              </div>
+              <TrashView
+                trashedTasks={trashedTasks}
+                onRestore={restoreTask}
+                onPermanentDelete={permanentDeleteTask}
+                onClearTrash={clearTrash}
+              />
+            </>
+          ) : (
+            <>
+              <TaskInput onAdd={handleAdd} />
+              <TaskList
+                tasks={filteredTasks}
+                onToggle={toggleComplete}
+                onToggleSubtask={toggleSubtask}
+                onUpdate={updateTask}
+                onDelete={deleteTask}
+                dateFilterType={dateFilterType}
+                onDateFilterTypeChange={setDateFilterType}
+                dateFrom={dateFrom}
+                onDateFromChange={handleDateFromChange}
+                dateTo={dateTo}
+                onDateToChange={handleDateToChange}
+                filterMode={filterMode}
+                onFilterModeChange={handleFilterModeChange}
+                filterYear={filterYear}
+                filterMonth={filterMonth}
+                onMonthChange={handleMonthChange}
+                showImportantOnly={showImportantOnly}
+                onShowImportantOnlyChange={setShowImportantOnly}
+                calSelectedDate={calSelectedDate}
+                onClearCalendarDate={() => {
+                  setCalSelectedDate(null);
+                  handleFilterModeChange('month');
+                }}
+              />
+            </>
+          )}
         </main>
 
         {calendarOpen && (
@@ -308,10 +326,7 @@ function AppContent() {
       </div>
 
       {managerOpen && (
-        <CategoryManager
-          tasks={tasks}
-          onClose={() => setManagerOpen(false)}
-        />
+        <CategoryManager tasks={tasks} onClose={() => setManagerOpen(false)} />
       )}
 
       {recurringManagerOpen && (
