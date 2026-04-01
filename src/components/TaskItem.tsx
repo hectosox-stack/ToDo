@@ -60,6 +60,11 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
   const newSubtaskInputRef = useRef<HTMLInputElement>(null);
   const editSubtaskInputRef = useRef<HTMLInputElement>(null);
 
+  // 서브태스크 날짜 편집 패널
+  const [subtaskPanel, setSubtaskPanel] = useState<{
+    id: string; title: string; dueDate: string;
+  } | null>(null);
+
   // 실행취소 스낵바
   const [undoInfo, setUndoInfo] = useState<{ subtask: SubTask; index: number } | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -175,6 +180,26 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
   function handleEditSubtaskKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter') saveEditSubtask();
     else if (e.key === 'Escape') setEditingSubtaskId(null);
+  }
+
+  // ── 서브태스크 날짜 편집 패널 ──────────────
+  function openSubtaskPanel(sub: SubTask) {
+    setSubtaskPanel({
+      id:      sub.id,
+      title:   sub.title,
+      dueDate: sub.dueDate ?? '',
+    });
+    setEditingSubtaskId(null);
+  }
+  function saveSubtaskPanel() {
+    if (!subtaskPanel) return;
+    const updated = (task.subtasks ?? []).map(s =>
+      s.id === subtaskPanel.id
+        ? { ...s, title: subtaskPanel.title.trim() || s.title, dueDate: subtaskPanel.dueDate || undefined }
+        : s
+    );
+    onUpdate(task.id, { subtasks: updated });
+    setSubtaskPanel(null);
   }
 
   // ── 서브태스크 삭제 + 실행취소 3초 스낵바 ─
@@ -517,10 +542,24 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
                   </span>
                 )}
 
-                {sub.dueDate && editingSubtaskId !== sub.id && (
-                  <span className="text-xs flex-shrink-0 text-gray-400">
-                    완료: {sub.dueDate}
-                  </span>
+                {/* 날짜 표시 (편집 중이 아닐 때) */}
+                {editingSubtaskId !== sub.id && (
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {sub.dueDate && (
+                      <span
+                        className="text-xs flex-shrink-0"
+                        title="마감일"
+                        style={{ color: (!sub.completed && new Date(sub.dueDate) < new Date(new Date().toDateString())) ? '#EF4444' : '#9CA3AF' }}
+                      >
+                        마감 {sub.dueDate}
+                      </span>
+                    )}
+                    {sub.completedAt && (
+                      <span className="text-xs text-green-400 flex-shrink-0" title="완료일">
+                        완료 {sub.completedAt}
+                      </span>
+                    )}
+                  </div>
                 )}
 
                 {/* 수정/삭제 아이콘 (hover 시 표시) */}
@@ -528,7 +567,7 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
                   {editingSubtaskId !== sub.id && (
                     <button
                       type="button"
-                      onClick={() => startEditSubtask(sub)}
+                      onClick={() => openSubtaskPanel(sub)}
                       aria-label={`${sub.title} 수정`}
                       title="수정"
                       className="text-gray-400 hover:text-blue-500 text-xs p-0.5 rounded focus:outline-none"
@@ -609,6 +648,49 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
             >
               + 세부 항목 추가
             </button>
+          )}
+
+          {/* 서브태스크 편집 패널 */}
+          {subtaskPanel && (
+            <div className="mx-1 my-1 px-3 py-2.5 rounded-lg border border-indigo-200 bg-white flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-500 w-10 flex-shrink-0">제목</label>
+                <input
+                  type="text"
+                  value={subtaskPanel.title}
+                  onChange={e => setSubtaskPanel(p => p ? { ...p, title: e.target.value } : p)}
+                  onKeyDown={e => { if (e.key === 'Enter') saveSubtaskPanel(); if (e.key === 'Escape') setSubtaskPanel(null); }}
+                  autoFocus
+                  className="flex-1 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+              </div>
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-500 w-10 flex-shrink-0">마감일</label>
+                  <input
+                    type="date"
+                    value={subtaskPanel.dueDate}
+                    onChange={e => setSubtaskPanel(p => p ? { ...p, dueDate: e.target.value } : p)}
+                    className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  />
+                  {subtaskPanel.dueDate && (
+                    <button type="button" onClick={() => setSubtaskPanel(p => p ? { ...p, dueDate: '' } : p)}
+                      className="text-xs text-gray-400 hover:text-red-400 focus:outline-none">지우기</button>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setSubtaskPanel(null)}
+                  className="px-2 py-1 text-xs border border-gray-300 rounded text-gray-500 hover:bg-gray-100 focus:outline-none">
+                  취소
+                </button>
+                <button type="button" onClick={saveSubtaskPanel}
+                  className="px-2 py-1 text-xs text-white rounded focus:outline-none"
+                  style={{ backgroundColor: '#F05A28' }}>
+                  저장
+                </button>
+              </div>
+            </div>
           )}
 
           {/* 실행취소 스낵바 (삭제 후 3초) */}

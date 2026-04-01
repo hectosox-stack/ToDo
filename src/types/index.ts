@@ -16,6 +16,7 @@ export interface SubTask {
   completed: boolean;
   order?: number;
   dueDate?: string;
+  completedAt?: string;
 }
 
 export interface Task {

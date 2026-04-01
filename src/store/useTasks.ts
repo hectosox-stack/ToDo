@@ -206,7 +206,7 @@ export function useTasks() {
     const updatedSubtasks = (task.subtasks ?? []).map(s => {
       if (s.id !== subtaskId) return s;
       const completed = !s.completed;
-      return { ...s, completed, dueDate: completed ? new Date().toISOString().slice(0, 10) : undefined };
+      return { ...s, completed, completedAt: completed ? new Date().toISOString().slice(0, 10) : undefined };
     });
     const allDone   = updatedSubtasks.length > 0 && updatedSubtasks.every(s => s.completed);
     const completed = allDone;

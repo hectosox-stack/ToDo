@@ -8,6 +8,7 @@ const NOTE_MAX = 200;
 interface SubTaskDraft {
   id: string;
   title: string;
+  dueDate?: string;
 }
 
 interface TaskInputProps {
@@ -40,6 +41,10 @@ export default function TaskInput({ onAdd }: TaskInputProps) {
     setSubtaskDrafts(prev => prev.map(s => s.id === id ? { ...s, title: value } : s));
   }
 
+  function updateSubtaskDraftDate(id: string, dueDate: string) {
+    setSubtaskDrafts(prev => prev.map(s => s.id === id ? { ...s, dueDate: dueDate || undefined } : s));
+  }
+
   function removeSubtaskDraft(id: string) {
     setSubtaskDrafts(prev => prev.filter(s => s.id !== id));
   }
@@ -61,7 +66,12 @@ export default function TaskInput({ onAdd }: TaskInputProps) {
     if (!title.trim()) { titleRef.current?.focus(); return; }
     const validSubtasks: SubTask[] = subtaskDrafts
       .filter(s => s.title.trim())
-      .map(s => ({ id: s.id, title: s.title.trim(), completed: false }));
+      .map(s => ({
+        id: s.id,
+        title: s.title.trim(),
+        completed: false,
+        dueDate: s.dueDate || undefined,
+      }));
     // [수정 1] important 전달
     onAdd(title.trim(), category, startDate || undefined, dueDate || undefined, note.trim() || undefined, validSubtasks.length > 0 ? validSubtasks : undefined, important || undefined);
     setTitle('');
@@ -221,6 +231,14 @@ export default function TaskInput({ onAdd }: TaskInputProps) {
                 placeholder="세부 항목 입력..."
                 autoFocus={idx === subtaskDrafts.length - 1}
                 className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              />
+              <input
+                type="date"
+                value={s.dueDate ?? ''}
+                onChange={e => updateSubtaskDraftDate(s.id, e.target.value)}
+                aria-label="세부 항목 마감일"
+                title="마감일"
+                className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-300"
               />
               <button
                 type="button"

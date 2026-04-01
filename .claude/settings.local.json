@@ -12,7 +12,10 @@
       "Bash(curl -s http://localhost:4000/health)",
       "Bash(npm list:*)",
       "Bash(npx kill-port:*)",
-      "Bash(node server/migrate.js)"
+      "Bash(node server/migrate.js)",
+      "Bash(powershell -Command \"Get-ChildItem 'C:\\\\vibecording\\\\0.개발서버' | Select-Object Name, PSIsContainer | Format-Table -AutoSize\")",
+      "Bash(powershell -Command \"Get-ChildItem 'C:\\\\vibecording\\\\0.개발서버\\\\node_modules' | Measure-Object | Select-Object Count\")",
+      "Bash(\"C:\\\\vibecording\\\\0.개발서버\\\\server\\\\routes\\\\tasks.js\")"
     ]
   }
 }
