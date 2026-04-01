@@ -497,14 +497,16 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
       {/* ── 세부 항목 섹션 ── */}
       {/* [수정 1] 조건 없이 항상 렌더링 — subtasksExpanded 제거 */}
       {showSubtaskSection && (
-        <div className="px-4 pb-2 flex flex-col gap-1 bg-indigo-50/30">
+        <div className="px-4 pb-2 bg-indigo-50/20">
+          {/* 들여쓰기 + 왼쪽 구분선으로 계층 구조 표시 */}
+          <div className="ml-10 border-l-2 border-indigo-200 pl-3 flex flex-col gap-1">
           {/* 서브태스크 목록 */}
           {/* [수정 3] max-h + overflow-y:auto — 항목 많을 때 스크롤 */}
           <div className={totalSubtasks > 10 ? 'max-h-64 overflow-y-auto' : ''}>
             {visibleSubtasks.map(sub => (
               <div
                 key={sub.id}
-                className={`flex items-center gap-2 pl-7 py-1 rounded-lg group transition-colors ${
+                className={`flex items-center gap-2 py-1 rounded-lg group transition-colors ${
                   sub.completed ? 'opacity-60' : 'hover:bg-indigo-50/60'
                 }`}
               >
@@ -594,7 +596,7 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
             <button
               type="button"
               onClick={() => setShowAllSubtasks(true)}
-              className="ml-7 text-xs text-indigo-400 hover:text-indigo-600 transition-colors focus:outline-none"
+              className="text-xs text-indigo-400 hover:text-indigo-600 transition-colors focus:outline-none"
             >
               외 {hiddenSubtaskCount}개 더보기
             </button>
@@ -603,7 +605,7 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
             <button
               type="button"
               onClick={() => setShowAllSubtasks(false)}
-              className="ml-7 text-xs text-gray-400 hover:text-gray-600 transition-colors focus:outline-none"
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors focus:outline-none"
             >
               접기
             </button>
@@ -611,7 +613,7 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
 
           {/* 추가 입력 폼 */}
           {addingSubtask ? (
-            <div className="flex items-center gap-2 pl-7 py-1">
+            <div className="flex items-center gap-2 py-1">
               <span className="w-3.5 h-3.5 border border-gray-300 rounded flex-shrink-0" />
               <input
                 ref={newSubtaskInputRef}
@@ -644,7 +646,7 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
             <button
               type="button"
               onClick={() => setAddingSubtask(true)}
-              className="ml-7 mt-0.5 text-xs text-gray-400 hover:text-indigo-500 transition-colors focus:outline-none text-left"
+              className="mt-0.5 text-xs text-gray-400 hover:text-indigo-500 transition-colors focus:outline-none text-left"
             >
               + 세부 항목 추가
             </button>
@@ -696,7 +698,7 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
           {/* 실행취소 스낵바 (삭제 후 3초) */}
           {undoInfo && (
             <div
-              className="flex items-center justify-between mx-1 mt-1 px-3 py-2 rounded-lg text-xs"
+              className="flex items-center justify-between mt-1 px-3 py-2 rounded-lg text-xs"
               style={{ backgroundColor: '#1A1A1A', color: '#fff' }}
             >
               <span>'{undoInfo.subtask.title}' 삭제됨</span>
@@ -710,6 +712,7 @@ function TaskItem({ task, onToggle, onToggleSubtask, onUpdate, onDelete }: TaskI
               </button>
             </div>
           )}
+          </div>{/* 들여쓰기 wrapper 닫기 */}
         </div>
       )}
     </div>
